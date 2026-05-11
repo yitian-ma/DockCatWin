@@ -1,19 +1,26 @@
 # Task
 
-- Task description: Create a new standalone Windows repository for DockCat and implement a minimal WPF runnable version.
+- Task description: Keep DockCatWin cat from being dragged below the taskbar boundary, while preserving the previous 1-5 feature work.
 - Mode: Feature
 - Target files:
   - `DockCatWin/DockCatWin.csproj`
-  - `DockCatWin/App.xaml`
   - `DockCatWin/App.xaml.cs`
   - `DockCatWin/MainWindow.xaml`
   - `DockCatWin/MainWindow.xaml.cs`
+  - `DockCatWin/SettingsWindow.xaml`
+  - `DockCatWin/SettingsWindow.xaml.cs`
+  - `DockCatWin/Core/Assets/*`
+  - `DockCatWin/Core/Reminder/*`
   - `DockCatWin/Platform/TaskbarGeometry.cs`
+  - `DockCatWin/UI/Bubble/*`
+  - `DockCatWin/UI/Tray/*`
   - `README.md`
-  - `.gitignore`
 - Constraints:
   - Keep the existing macOS repository untouched.
   - Use .NET 8 WPF for the first Windows implementation.
   - Copy and reuse the existing default cat image resources.
-  - Implement only the minimal desktop pet behavior first: transparent topmost window, taskbar positioning, walking/resting animation, drag, and right-click exit.
-  - Local machine currently lacks the .NET SDK and GitHub CLI, so build/publish may be blocked until those are installed.
+  - Do not implement outing/focus/collectable features yet.
+  - Keep the existing macOS repository untouched.
+  - Preserve the current WPF structure and keep this pass focused on daily-use Windows behavior.
+  - Clamp drag results so the cat cannot end below the taskbar/work-area boundary.
+  - Build verification should pass with .NET 8 SDK.

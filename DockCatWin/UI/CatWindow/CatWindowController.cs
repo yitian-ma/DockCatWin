@@ -16,6 +16,8 @@ public sealed class CatWindowController
     private readonly ScaleTransform mirrorTransform;
     private readonly WpfSize sourceSize;
     private double scale = 0.1;
+    private double extraTopWidth;
+    private double extraTopHeight;
 
     public CatWindowController(Window window, WpfImage image, ScaleTransform mirrorTransform, WpfSize sourceSize)
     {
@@ -39,6 +41,13 @@ public sealed class CatWindowController
         ApplySize();
     }
 
+    public void SetExtraTopContent(double width, double height)
+    {
+        extraTopWidth = Math.Max(0, width);
+        extraTopHeight = Math.Max(0, height);
+        ApplySize();
+    }
+
     public void SetMirrored(bool mirrored)
     {
         mirrorTransform.ScaleX = mirrored ? -1 : 1;
@@ -48,23 +57,23 @@ public sealed class CatWindowController
     {
         if (edge is TaskbarEdge.Left or TaskbarEdge.Right)
         {
-            window.Left = anchor.X - CatSize.Width;
-            window.Top = anchor.Y - CatSize.Height;
+            window.Left = anchor.X - CatSize.Width - CatOffsetX;
+            window.Top = anchor.Y - window.Height;
             return;
         }
 
-        window.Left = anchor.X;
-        window.Top = anchor.Y - CatSize.Height;
+        window.Left = anchor.X - CatOffsetX;
+        window.Top = anchor.Y - window.Height;
     }
 
     public WpfPoint CurrentAnchor(TaskbarEdge edge)
     {
         if (edge is TaskbarEdge.Left or TaskbarEdge.Right)
         {
-            return new WpfPoint(window.Left + CatSize.Width, window.Top + CatSize.Height);
+            return new WpfPoint(window.Left + CatOffsetX + CatSize.Width, window.Top + window.Height);
         }
 
-        return new WpfPoint(window.Left, window.Top + CatSize.Height);
+        return new WpfPoint(window.Left + CatOffsetX, window.Top + window.Height);
     }
 
     private void ApplySize()
@@ -73,7 +82,9 @@ public sealed class CatWindowController
         var height = Math.Max(48, sourceSize.Height * scale);
         image.Width = width;
         image.Height = height;
-        window.Width = width;
-        window.Height = height;
+        window.Width = Math.Max(width, extraTopWidth);
+        window.Height = height + extraTopHeight;
     }
+
+    private double CatOffsetX => Math.Max(0, (window.Width - CatSize.Width) / 2);
 }

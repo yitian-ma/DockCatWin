@@ -10,7 +10,9 @@ public sealed class CatAssetPack
         IReadOnlyList<BitmapImage> restingPoses,
         IReadOnlyList<BitmapImage> transitionPoses,
         IReadOnlyList<BitmapImage> heldPoses,
-        IReadOnlyList<BitmapImage> dialoguePoses)
+        IReadOnlyList<BitmapImage> dialoguePoses,
+        string rootPath,
+        string? loadError = null)
     {
         Manifest = manifest;
         WalkFrames = walkFrames;
@@ -18,6 +20,8 @@ public sealed class CatAssetPack
         TransitionPoses = transitionPoses;
         HeldPoses = heldPoses;
         DialoguePoses = dialoguePoses;
+        RootPath = rootPath;
+        LoadError = loadError;
     }
 
     public AssetManifest Manifest { get; }
@@ -26,6 +30,8 @@ public sealed class CatAssetPack
     public IReadOnlyList<BitmapImage> TransitionPoses { get; }
     public IReadOnlyList<BitmapImage> HeldPoses { get; }
     public IReadOnlyList<BitmapImage> DialoguePoses { get; }
+    public string RootPath { get; }
+    public string? LoadError { get; }
 
     public double WalkFps => Math.Clamp(Manifest.Animations.Walk.Fps, 1, 24);
     public double SourceWidth => Manifest.CanvasWidth > 0 ? Manifest.CanvasWidth : 1254;

@@ -11,8 +11,36 @@
         Topmost="True"
         ShowInTaskbar="False"
         SizeToContent="Manual">
-    <Grid Background="Transparent">
+    <Grid x:Name="RootLayout" Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border x:Name="BubbleBorder"
+                Grid.Row="0"
+                MaxWidth="280"
+                Margin="0,0,0,8"
+                Padding="10"
+                Background="#F4FFFFFF"
+                BorderBrush="#33000000"
+                BorderThickness="1"
+                CornerRadius="8"
+                Visibility="Collapsed">
+            <StackPanel>
+                <TextBlock x:Name="BubbleText"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           Foreground="#202020" />
+                <StackPanel x:Name="BubbleButtons"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+
         <Image x:Name="CatImage"
+               Grid.Row="1"
                Width="150"
                Height="150"
                Stretch="Uniform"

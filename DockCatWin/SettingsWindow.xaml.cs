@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using DockCatWin.Core.Settings;
 
@@ -6,15 +7,23 @@ namespace DockCatWin;
 
 public partial class SettingsWindow : Window
 {
-    public SettingsWindow(AppSettings settings, IEnumerable<string> assetPackIDs)
+    private readonly Func<IEnumerable<string>> assetPackIDsProvider;
+    private readonly Func<string, string> assetPackStatusProvider;
+    private readonly string assetPacksRoot;
+
+    public SettingsWindow(
+        AppSettings settings,
+        IEnumerable<string> assetPackIDs,
+        Func<IEnumerable<string>> assetPackIDsProvider,
+        Func<string, string> assetPackStatusProvider,
+        string assetPacksRoot)
     {
         InitializeComponent();
+        this.assetPackIDsProvider = assetPackIDsProvider;
+        this.assetPackStatusProvider = assetPackStatusProvider;
+        this.assetPacksRoot = assetPacksRoot;
         Settings = settings.Clone();
-        AssetPackBox.Items.Add("default-lizz");
-        foreach (var id in assetPackIDs.Where(id => id != "default-lizz"))
-        {
-            AssetPackBox.Items.Add(id);
-        }
+        PopulateAssetPacks(assetPackIDs);
         Populate(Settings);
     }
 
@@ -34,7 +43,8 @@ public partial class SettingsWindow : Window
         WalkMaxBox.Text = Format(settings.WalkDurationMaximumSeconds / 60);
         WaterReminderBox.Text = Format(settings.WaterReminderIntervalSeconds / 60);
         MovementReminderBox.Text = Format(settings.MovementReminderIntervalSeconds / 60);
-        DefaultOutingBox.Text = Format(settings.DefaultOutingDurationSeconds / 60);
+        RemindersEnabledBox.IsChecked = settings.RemindersEnabled;
+        UpdateAssetPackStatus();
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -54,6 +64,27 @@ public partial class SettingsWindow : Window
         DialogResult = false;
     }
 
+    private void RefreshAssetPacks_Click(object sender, RoutedEventArgs e)
+    {
+        PopulateAssetPacks(assetPackIDsProvider());
+        UpdateAssetPackStatus();
+    }
+
+    private void OpenAssetFolder_Click(object sender, RoutedEventArgs e)
+    {
+        Directory.CreateDirectory(assetPacksRoot);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = assetPacksRoot,
+            UseShellExecute = true
+        });
+    }
+
+    private void AssetPackBox_Changed(object sender, EventArgs e)
+    {
+        UpdateAssetPackStatus();
+    }
+
     private bool TryReadSettings(out AppSettings settings)
     {
         settings = Settings.Clone();
@@ -65,8 +96,7 @@ public partial class SettingsWindow : Window
             || !TryReadDouble(WalkMinBox.Text, out var walkMin)
             || !TryReadDouble(WalkMaxBox.Text, out var walkMax)
             || !TryReadDouble(WaterReminderBox.Text, out var waterReminder)
-            || !TryReadDouble(MovementReminderBox.Text, out var movementReminder)
-            || !TryReadDouble(DefaultOutingBox.Text, out var defaultOuting))
+            || !TryReadDouble(MovementReminderBox.Text, out var movementReminder))
         {
             return false;
         }
@@ -83,9 +113,35 @@ public partial class SettingsWindow : Window
         settings.WalkDurationMaximumSeconds = walkMax * 60;
         settings.WaterReminderIntervalSeconds = waterReminder * 60;
         settings.MovementReminderIntervalSeconds = movementReminder * 60;
-        settings.DefaultOutingDurationSeconds = defaultOuting * 60;
+        settings.RemindersEnabled = RemindersEnabledBox.IsChecked == true;
         settings.Normalize();
         return true;
+    }
+
+    private void PopulateAssetPacks(IEnumerable<string> assetPackIDs)
+    {
+        var current = AssetPackBox.Text;
+        AssetPackBox.Items.Clear();
+        AssetPackBox.Items.Add("default-lizz");
+        foreach (var id in assetPackIDs.Where(id => id != "default-lizz").Distinct().Order(StringComparer.OrdinalIgnoreCase))
+        {
+            AssetPackBox.Items.Add(id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(current))
+        {
+            AssetPackBox.Text = current;
+        }
+    }
+
+    private void UpdateAssetPackStatus()
+    {
+        if (AssetPackStatusText is null)
+        {
+            return;
+        }
+
+        AssetPackStatusText.Text = assetPackStatusProvider(AssetPackBox.Text);
     }
 
     private static bool TryReadDouble(string text, out double value)

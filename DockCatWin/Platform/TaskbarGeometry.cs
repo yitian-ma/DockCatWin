@@ -42,7 +42,7 @@ internal readonly record struct TaskbarActivityArea(
                 MinY + Math.Max(0, MaxY - MinY - catSize.Height) * normalized + catSize.Height),
             _ => new WpfPoint(
                 MinX + Math.Max(0, MaxX - MinX - catSize.Width) * normalized,
-                WorkingArea.Bottom + 6)
+                BottomEdgeAnchorY)
         };
     }
 
@@ -53,9 +53,15 @@ internal readonly record struct TaskbarActivityArea(
             TaskbarEdge.Left or TaskbarEdge.Right => new WpfPoint(
                 anchor.X,
                 Math.Clamp(anchor.Y, MinY + catSize.Height, MaxY)),
+            TaskbarEdge.Top => new WpfPoint(
+                Math.Clamp(anchor.X, MinX, MaxX - catSize.Width),
+                Math.Max(anchor.Y, WorkingArea.Top + catSize.Height)),
+            TaskbarEdge.Bottom => new WpfPoint(
+                Math.Clamp(anchor.X, MinX, MaxX - catSize.Width),
+                Math.Min(anchor.Y, BottomEdgeAnchorY)),
             _ => new WpfPoint(
                 Math.Clamp(anchor.X, MinX, MaxX - catSize.Width),
-                anchor.Y)
+                Math.Min(anchor.Y, BottomEdgeAnchorY))
         };
     }
 
@@ -79,6 +85,8 @@ internal readonly record struct TaskbarActivityArea(
             ? anchor.X + catSize.Width >= MaxX - 0.1
             : anchor.Y >= MaxY - 0.1;
     }
+
+    private double BottomEdgeAnchorY => WorkingArea.Bottom;
 }
 
 internal static class TaskbarGeometry

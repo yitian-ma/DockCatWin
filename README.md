@@ -5,9 +5,19 @@ DockCatWin is a first Windows port of DockCat. This repository starts with a min
 - transparent topmost window
 - taskbar-edge positioning
 - default image resources copied from DockCat
-- simple walking/resting animation
+- walking/resting/transition animation
 - drag support
-- right-click menu with exit
+- right-click menu and tray menu
+- water and movement reminders
+- speech bubble actions
+- basic settings persistence
+- custom asset pack folder with fallback to the default cat
+
+Custom asset packs live under:
+
+```text
+%APPDATA%\DockCatWin\AssetPacks
+```
 
 ## Requirements
 
