@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Windows;
+using DockCatWin.Core.Outing;
 using DockCatWin.Core.Statistics;
 using DockCatWin.Platform;
 using DockCatWin.Core.Settings;
@@ -19,13 +20,17 @@ public partial class SettingsWindow : Window
         Func<IEnumerable<string>> assetPackIDsProvider,
         Func<string, string> assetPackStatusProvider,
         string assetPacksRoot,
-        UsageStatistics statistics)
+        UsageStatistics statistics,
+        OutingCatalog outingCatalog,
+        CollectableInventory collectableInventory)
     {
         InitializeComponent();
         this.assetPackIDsProvider = assetPackIDsProvider;
         this.assetPackStatusProvider = assetPackStatusProvider;
         this.assetPacksRoot = assetPacksRoot;
         Statistics = statistics.Clone();
+        OutingCatalog = outingCatalog;
+        CollectableInventory = collectableInventory;
         Settings = settings.Clone();
         PopulateAssetPacks(assetPackIDs);
         Populate(Settings);
@@ -33,6 +38,8 @@ public partial class SettingsWindow : Window
 
     public AppSettings Settings { get; private set; }
     public UsageStatistics Statistics { get; }
+    public OutingCatalog OutingCatalog { get; }
+    public CollectableInventory CollectableInventory { get; }
 
     private void Populate(AppSettings settings)
     {
@@ -49,8 +56,10 @@ public partial class SettingsWindow : Window
         WalkMaxBox.Text = Format(settings.WalkDurationMaximumSeconds / 60);
         WaterReminderBox.Text = Format(settings.WaterReminderIntervalSeconds / 60);
         MovementReminderBox.Text = Format(settings.MovementReminderIntervalSeconds / 60);
+        DefaultOutingBox.Text = Format(settings.DefaultOutingDurationSeconds / 60);
         RemindersEnabledBox.IsChecked = settings.RemindersEnabled;
         StatisticsText.Text = StatisticsTextValue();
+        CollectablesText.Text = CollectablesTextValue();
         UpdateAssetPackStatus();
     }
 
@@ -103,7 +112,8 @@ public partial class SettingsWindow : Window
             || !TryReadDouble(WalkMinBox.Text, out var walkMin)
             || !TryReadDouble(WalkMaxBox.Text, out var walkMax)
             || !TryReadDouble(WaterReminderBox.Text, out var waterReminder)
-            || !TryReadDouble(MovementReminderBox.Text, out var movementReminder))
+            || !TryReadDouble(MovementReminderBox.Text, out var movementReminder)
+            || !TryReadDouble(DefaultOutingBox.Text, out var defaultOuting))
         {
             return false;
         }
@@ -121,6 +131,7 @@ public partial class SettingsWindow : Window
         settings.WalkDurationMaximumSeconds = walkMax * 60;
         settings.WaterReminderIntervalSeconds = waterReminder * 60;
         settings.MovementReminderIntervalSeconds = movementReminder * 60;
+        settings.DefaultOutingDurationSeconds = defaultOuting * 60;
         settings.RemindersEnabled = RemindersEnabledBox.IsChecked == true;
         settings.Normalize();
         return true;
@@ -161,7 +172,32 @@ public partial class SettingsWindow : Window
     private string StatisticsTextValue()
     {
         var total = TimeSpan.FromSeconds(Statistics.TotalCompanionSeconds);
-        return $"陪伴 {Math.Floor(total.TotalHours):0}小时{total.Minutes:00}分钟，喝水完成 {Statistics.CompletedWaterReminders} 次，走动完成 {Statistics.CompletedMovementReminders} 次";
+        var collectedKinds = CollectableInventory.Entries.Count;
+        var totalKinds = OutingCatalog.Collectables.Count;
+        var recent = CollectableInventory.RecentNewCollectableID is { Length: > 0 } recentID
+            ? OutingCatalog.Collectables.FirstOrDefault(item => item.Id == recentID)?.ChineseName
+            : null;
+        var recentText = string.IsNullOrWhiteSpace(recent) ? "" : $"，最近获得 {recent}";
+        return $"陪伴 {Math.Floor(total.TotalHours):0}小时{total.Minutes:00}分钟，喝水完成 {Statistics.CompletedWaterReminders} 次，走动完成 {Statistics.CompletedMovementReminders} 次，出门见闻 {Statistics.OutingEvents} 次，带回礼物 {Statistics.OutingCollectables} 次，收藏 {collectedKinds}/{totalKinds} 种{recentText}";
+    }
+
+    private string CollectablesTextValue()
+    {
+        if (CollectableInventory.Entries.Count == 0)
+        {
+            return "还没有收藏品。";
+        }
+
+        var names = CollectableInventory.Entries.Values
+            .OrderByDescending(entry => entry.LastAcquiredAt)
+            .Take(8)
+            .Select(entry =>
+            {
+                var item = OutingCatalog.Collectables.FirstOrDefault(collectable => collectable.Id == entry.CollectableID);
+                var name = item?.ChineseName ?? entry.CollectableID;
+                return entry.Count > 1 ? $"{name} x{entry.Count}" : name;
+            });
+        return string.Join("、", names);
     }
 
     private void UpdateAssetPackStatus()

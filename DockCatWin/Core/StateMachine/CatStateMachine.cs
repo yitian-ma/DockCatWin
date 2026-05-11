@@ -52,6 +52,11 @@ public sealed class CatStateMachine
 
     public void Pet()
     {
+        if (State.IsOuting)
+        {
+            return;
+        }
+
         EnterTransitioning();
     }
 
@@ -76,6 +81,11 @@ public sealed class CatStateMachine
 
     public void ToggleLongDurationState()
     {
+        if (State.IsOuting)
+        {
+            return;
+        }
+
         if (State.Kind == CatStateKind.Walking)
         {
             TransitionTo(CatState.Resting);
@@ -85,6 +95,77 @@ public sealed class CatStateMachine
 
         TransitionTo(CatState.Walking);
         ScheduleCurrentState();
+    }
+
+    public void BeginOutingPrompt()
+    {
+        if (State.IsOuting)
+        {
+            return;
+        }
+
+        TransitionTo(CatState.OutingAsking);
+    }
+
+    public void ConfirmOuting()
+    {
+        if (State.Kind == CatStateKind.OutingAsking)
+        {
+            TransitionTo(CatState.OutingConfirmingDeparture);
+        }
+    }
+
+    public void CancelOutingPrompt()
+    {
+        if (State.Kind == CatStateKind.OutingAsking)
+        {
+            EnterRandomLongDurationState();
+        }
+    }
+
+    public void DepartOuting()
+    {
+        if (State.Kind == CatStateKind.OutingConfirmingDeparture)
+        {
+            TransitionTo(CatState.OutingLeaving);
+        }
+    }
+
+    public void RestoreOutingAway()
+    {
+        TransitionTo(CatState.OutingAway);
+    }
+
+    public void MarkAway()
+    {
+        if (State.Kind == CatStateKind.OutingLeaving)
+        {
+            TransitionTo(CatState.OutingAway);
+        }
+    }
+
+    public void ReturnFromOuting()
+    {
+        if (State.IsOuting)
+        {
+            TransitionTo(CatState.OutingReturning);
+        }
+    }
+
+    public void FinishReturnWalk()
+    {
+        if (State.Kind == CatStateKind.OutingReturning)
+        {
+            TransitionTo(CatState.OutingReturned);
+        }
+    }
+
+    public void WelcomeBack()
+    {
+        if (State.Kind == CatStateKind.OutingReturned)
+        {
+            EnterRandomLongDurationStateWithOptionalTransition();
+        }
     }
 
     private void EnterRandomLongDurationStateWithOptionalTransition()

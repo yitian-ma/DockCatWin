@@ -18,6 +18,8 @@ public sealed class AppSettings
     public double CatScalePercent { get; set; } = 10;
     public double StartPositionPercent { get; set; } = 75;
     public string? ActivityDisplayID { get; set; }
+    public DateTime? ActiveOutingEndDate { get; set; }
+    public double? ActiveOutingDurationSeconds { get; set; }
 
     public static AppSettings Defaults => new();
 
@@ -40,7 +42,9 @@ public sealed class AppSettings
             WalkBaseSpeed = WalkBaseSpeed,
             CatScalePercent = CatScalePercent,
             StartPositionPercent = StartPositionPercent,
-            ActivityDisplayID = ActivityDisplayID
+            ActivityDisplayID = ActivityDisplayID,
+            ActiveOutingEndDate = ActiveOutingEndDate,
+            ActiveOutingDurationSeconds = ActiveOutingDurationSeconds
         };
     }
 

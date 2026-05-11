@@ -7,6 +7,8 @@ public sealed class UsageStatistics
     public double TotalCompanionSeconds { get; set; }
     public int CompletedWaterReminders { get; set; }
     public int CompletedMovementReminders { get; set; }
+    public int OutingEvents { get; set; }
+    public int OutingCollectables { get; set; }
 
     public UsageStatistics Clone()
     {
@@ -16,7 +18,9 @@ public sealed class UsageStatistics
             LastUpdatedAt = LastUpdatedAt,
             TotalCompanionSeconds = TotalCompanionSeconds,
             CompletedWaterReminders = CompletedWaterReminders,
-            CompletedMovementReminders = CompletedMovementReminders
+            CompletedMovementReminders = CompletedMovementReminders,
+            OutingEvents = OutingEvents,
+            OutingCollectables = OutingCollectables
         };
     }
 }

@@ -10,6 +10,7 @@ DockCatWin is a first Windows port of DockCat. This repository starts with a min
 - right-click menu and tray menu
 - water and movement reminders
 - speech bubble actions
+- outing/focus mode with recall, return events, and collectable rewards
 - basic settings persistence
 - custom asset pack folder with fallback to the default cat
 - display selection and display-change clamping
@@ -26,6 +27,12 @@ Settings, usage statistics, and backups live under:
 ```text
 %APPDATA%\DockCatWin
 %APPDATA%\DockCatWin\DataBackup\user-data-backup.json
+```
+
+Outing collectable inventory is stored at:
+
+```text
+%APPDATA%\DockCatWin\collectable-inventory.json
 ```
 
 ## Requirements

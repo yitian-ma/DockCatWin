@@ -1,6 +1,6 @@
 # Task
 
-- Task description: Complete remaining non-outing DockCatWin work: display selection, display change clamping, usage statistics, data backup, and release prep.
+- Task description: Finish remaining parity work for DockCatWin: outing polish, reminder defer, status menus, power wake handling, tray icon, and collection display.
 - Mode: Feature
 - Target files:
   - `DockCatWin/DockCatWin.csproj`
@@ -11,20 +11,20 @@
   - `DockCatWin/SettingsWindow.xaml.cs`
   - `DockCatWin/Core/Assets/*`
   - `DockCatWin/Core/Reminder/*`
+  - `DockCatWin/Core/Outing/*`
   - `DockCatWin/Core/Statistics/*`
   - `DockCatWin/Core/Backup/*`
+  - `DockCatWin/UI/Tray/*`
   - `DockCatWin/Platform/TaskbarGeometry.cs`
   - `DockCatWin/UI/Bubble/*`
   - `DockCatWin/UI/Tray/*`
+  - `DockCatWin/Resources/Outing/**`
   - `README.md`
   - `scripts/*`
 - Constraints:
   - Keep the existing macOS repository untouched.
   - Use .NET 8 WPF for the first Windows implementation.
   - Copy and reuse the existing default cat image resources.
-  - Do not implement outing/focus/collectable features yet.
-  - Keep the existing macOS repository untouched.
   - Preserve the current WPF structure and keep this pass focused on daily-use Windows behavior.
-  - Do not implement outing/focus/collectable features yet.
-  - Add pragmatic release preparation without introducing installer complexity.
+  - Match the original outing flow and close remaining practical parity gaps where feasible.
   - Build verification should pass with .NET 8 SDK.

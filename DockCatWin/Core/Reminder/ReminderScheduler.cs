@@ -6,6 +6,7 @@ public sealed class ReminderScheduler
 {
     private DateTime nextWaterDue = DateTime.UtcNow;
     private DateTime nextMovementDue = DateTime.UtcNow;
+    private ReminderType? pendingReminder;
 
     public ReminderScheduler(AppSettings settings)
     {
@@ -17,31 +18,39 @@ public sealed class ReminderScheduler
         var now = DateTime.UtcNow;
         nextWaterDue = now.AddSeconds(settings.WaterReminderIntervalSeconds);
         nextMovementDue = now.AddSeconds(settings.MovementReminderIntervalSeconds);
+        pendingReminder = null;
     }
 
-    public ReminderType? DueReminder(AppSettings settings)
+    public ReminderType? DueReminder(AppSettings settings, bool whenCatInLongDurationState)
     {
         if (!settings.RemindersEnabled)
         {
             return null;
         }
 
+        if (pendingReminder is not null)
+        {
+            return whenCatInLongDurationState ? pendingReminder : null;
+        }
+
         var now = DateTime.UtcNow;
+        ReminderType? due = null;
         if (now >= nextWaterDue)
         {
-            return ReminderType.Water;
+            due = ReminderType.Water;
         }
-
-        if (now >= nextMovementDue)
+        else if (now >= nextMovementDue)
         {
-            return ReminderType.Movement;
+            due = ReminderType.Movement;
         }
 
-        return null;
+        pendingReminder = due;
+        return whenCatInLongDurationState ? due : null;
     }
 
     public void Complete(ReminderType type, AppSettings settings)
     {
+        pendingReminder = null;
         Schedule(type, type == ReminderType.Water
             ? TimeSpan.FromSeconds(settings.WaterReminderIntervalSeconds)
             : TimeSpan.FromSeconds(settings.MovementReminderIntervalSeconds));
@@ -49,7 +58,13 @@ public sealed class ReminderScheduler
 
     public void Snooze(ReminderType type, TimeSpan delay)
     {
+        pendingReminder = null;
         Schedule(type, delay);
+    }
+
+    public void Clear()
+    {
+        pendingReminder = null;
     }
 
     private void Schedule(ReminderType type, TimeSpan delay)

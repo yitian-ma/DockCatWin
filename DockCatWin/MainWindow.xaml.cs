@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -7,6 +8,7 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 using DockCatWin.Core.Assets;
 using DockCatWin.Core.Backup;
+using DockCatWin.Core.Outing;
 using DockCatWin.Core.Reminder;
 using DockCatWin.Core.Settings;
 using DockCatWin.Core.StateMachine;
@@ -25,10 +27,13 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer stateTimer = new();
     private readonly DispatcherTimer reminderTimer = new() { Interval = TimeSpan.FromSeconds(10) };
     private readonly DispatcherTimer statisticsTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+    private readonly DispatcherTimer outingTimer = new();
     private readonly SettingsStore settingsStore = new();
     private readonly UsageStatisticsStore usageStatisticsStore = new();
     private readonly UserDataBackupStore userDataBackupStore = new();
     private readonly AssetPackLoader assetPackLoader = new();
+    private readonly OutingCatalogLoader outingCatalogLoader = new();
+    private readonly CollectableInventoryStore collectableInventoryStore = new();
     private readonly CatStateMachine stateMachine = new();
     private readonly Random random = new();
 
@@ -38,12 +43,17 @@ public partial class MainWindow : Window
     private ReminderScheduler reminderScheduler = null!;
     private TrayIconController trayIcon = null!;
     private UsageStatistics usageStatistics = new();
+    private OutingCatalog outingCatalog = null!;
+    private CollectableInventory collectableInventory = new();
     private TaskbarActivityArea activityArea;
     private IReadOnlyList<BitmapImage> activeFrames = [];
     private int frameIndex;
     private int direction = 1;
     private bool isExitRequested;
     private ReminderType? activeReminder;
+    private TimeSpan? pendingOutingDuration;
+    private OutingReward? pendingOutingReward;
+    private bool forceEventReturn;
 
     public MainWindow()
     {
@@ -63,11 +73,18 @@ public partial class MainWindow : Window
         stateMachine.Transitioned += (_, newState) => ApplyState(newState);
         stateMachine.DurationScheduled += ScheduleStateTimer;
         reminderTimer.Tick += (_, _) => PollReminders();
+        reminderTimer.Tick += (_, _) => UpdateTray();
         statisticsTimer.Tick += (_, _) => RecordCompanionMinute();
+        outingTimer.Tick += (_, _) =>
+        {
+            outingTimer.Stop();
+            ReturnFromOuting(drawReward: true);
+        };
         Closing += MainWindow_Closing;
         Closed += (_, _) =>
         {
             SystemEvents.DisplaySettingsChanged -= SystemEvents_DisplaySettingsChanged;
+            SystemEvents.PowerModeChanged -= SystemEvents_PowerModeChanged;
             SaveUserData();
             trayIcon?.Dispose();
         };
@@ -77,11 +94,15 @@ public partial class MainWindow : Window
     {
         settings = settingsStore.Load();
         usageStatistics = usageStatisticsStore.Load();
+        collectableInventory = collectableInventoryStore.Load();
+        outingCatalog = outingCatalogLoader.LoadCatalog();
         assetPack = assetPackLoader.LoadSelectedPack(settings.SelectedAssetPackID);
         reminderScheduler = new ReminderScheduler(settings);
-        trayIcon = new TrayIconController();
+        trayIcon = new TrayIconController(assetPack.DialoguePoses.FirstOrDefault()?.UriSource.LocalPath);
         trayIcon.PetRequested += () => Dispatcher.Invoke(stateMachine.Pet);
         trayIcon.ToggleStateRequested += () => Dispatcher.Invoke(stateMachine.ToggleLongDurationState);
+        trayIcon.OutingRequested += () => Dispatcher.Invoke(stateMachine.BeginOutingPrompt);
+        trayIcon.RecallRequested += () => Dispatcher.Invoke(ShowRecallConfirmation);
         trayIcon.SettingsRequested += () => Dispatcher.Invoke(ShowSettingsWindow);
         trayIcon.ToggleVisibilityRequested += () => Dispatcher.Invoke(ToggleVisibilityFromTray);
         trayIcon.ExitRequested += () => Dispatcher.Invoke(ExitApplication);
@@ -93,7 +114,11 @@ public partial class MainWindow : Window
 
         ApplySettings(reposition: true);
         SystemEvents.DisplaySettingsChanged += SystemEvents_DisplaySettingsChanged;
-        stateMachine.Start();
+        SystemEvents.PowerModeChanged += SystemEvents_PowerModeChanged;
+        if (!RestoreActiveOutingIfNeeded())
+        {
+            stateMachine.Start();
+        }
         movementTimer.Start();
         reminderTimer.Start();
         statisticsTimer.Start();
@@ -131,6 +156,28 @@ public partial class MainWindow : Window
         });
     }
 
+    private void SystemEvents_PowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (e.Mode == PowerModes.Suspend)
+            {
+                SaveUserData();
+                return;
+            }
+
+            if (e.Mode != PowerModes.Resume)
+            {
+                return;
+            }
+
+            ResolveActiveOutingAfterWake();
+            var anchor = catWindow.CurrentAnchor(activityArea.Edge);
+            ApplySettings(reposition: false);
+            catWindow.SetAnchor(activityArea.ClampAnchor(anchor, catWindow.CatSize), activityArea.Edge);
+        });
+    }
+
     private void ApplyState(CatState state)
     {
         animationTimer.Stop();
@@ -153,6 +200,30 @@ public partial class MainWindow : Window
                 break;
             case CatStateKind.Dragged:
                 SetRandomImage(assetPack.HeldPoses);
+                break;
+            case CatStateKind.OutingAsking:
+                SetRandomImage(assetPack.DialoguePoses);
+                ShowOutingDurationBubble();
+                break;
+            case CatStateKind.OutingConfirmingDeparture:
+                SetRandomImage(assetPack.DialoguePoses);
+                ShowBubble(
+                    $"我出门啦，{settings.UserSalutation}工作要加油呀！",
+                    ("好的", StartConfirmedOuting));
+                break;
+            case CatStateKind.OutingLeaving:
+                StartOutingWalkOut();
+                break;
+            case CatStateKind.OutingAway:
+                HideBubble();
+                Hide();
+                break;
+            case CatStateKind.OutingReturning:
+                StartOutingWalkIn();
+                break;
+            case CatStateKind.OutingReturned:
+                SetRandomImage(assetPack.DialoguePoses);
+                ShowOutingReturnBubble();
                 break;
         }
         UpdateTray();
@@ -179,6 +250,18 @@ public partial class MainWindow : Window
 
     private void AdvancePosition()
     {
+        if (stateMachine.State.Kind == CatStateKind.OutingLeaving)
+        {
+            AdvanceOutingWalkOut();
+            return;
+        }
+
+        if (stateMachine.State.Kind == CatStateKind.OutingReturning)
+        {
+            AdvanceOutingWalkIn();
+            return;
+        }
+
         if (stateMachine.State.Kind != CatStateKind.Walking)
         {
             return;
@@ -199,6 +282,41 @@ public partial class MainWindow : Window
 
         catWindow.SetAnchor(moved, activityArea.Edge);
         catWindow.SetMirrored(activityArea.UsesHorizontalMovement && direction < 0);
+    }
+
+    private void AdvanceOutingWalkOut()
+    {
+        var current = catWindow.CurrentAnchor(activityArea.Edge);
+        var delta = settings.WalkBaseSpeed * 1.5 * movementTimer.Interval.TotalSeconds;
+        var next = new System.Windows.Point(current.X + delta, current.Y);
+        if (next.X >= activityArea.Screen.Right + catWindow.CatSize.Width)
+        {
+            animationTimer.Stop();
+            stateMachine.MarkAway();
+            return;
+        }
+
+        catWindow.SetAnchor(next, activityArea.Edge);
+        catWindow.SetMirrored(false);
+    }
+
+    private void AdvanceOutingWalkIn()
+    {
+        var current = catWindow.CurrentAnchor(activityArea.Edge);
+        var target = activityArea.AnchorForPercent(settings.StartPositionPercent, catWindow.CatSize);
+        var delta = settings.WalkBaseSpeed * 1.5 * movementTimer.Interval.TotalSeconds;
+        var next = new System.Windows.Point(current.X - delta, target.Y);
+        if (next.X <= target.X)
+        {
+            animationTimer.Stop();
+            catWindow.SetAnchor(target, activityArea.Edge);
+            catWindow.SetMirrored(true);
+            stateMachine.FinishReturnWalk();
+            return;
+        }
+
+        catWindow.SetAnchor(next, activityArea.Edge);
+        catWindow.SetMirrored(true);
     }
 
     private void SetFrame(int index)
@@ -241,12 +359,38 @@ public partial class MainWindow : Window
     private void CatImage_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         var menu = new ContextMenu();
+        menu.Items.Add(new MenuItem { Header = StatusText(), IsEnabled = false });
+        if (RemainingText() is { Length: > 0 } remaining)
+        {
+            menu.Items.Add(new MenuItem { Header = remaining, IsEnabled = false });
+        }
+        menu.Items.Add(new Separator());
 
-        var pet = new MenuItem { Header = $"摸摸{settings.CatName}" };
-        pet.Click += (_, _) => stateMachine.Pet();
+        if (stateMachine.State.Kind == CatStateKind.OutingAway)
+        {
+            var recall = new MenuItem { Header = $"召回{settings.CatName}" };
+            recall.Click += (_, _) => ShowRecallConfirmation();
+            menu.Items.Add(recall);
+        }
+        else if (!stateMachine.State.IsOuting)
+        {
+            var pet = new MenuItem { Header = $"摸摸{settings.CatName}" };
+            pet.Click += (_, _) => stateMachine.Pet();
 
-        var toggle = new MenuItem { Header = stateMachine.State.Kind == CatStateKind.Walking ? "休息一下" : "散步" };
-        toggle.Click += (_, _) => stateMachine.ToggleLongDurationState();
+            var toggle = new MenuItem { Header = stateMachine.State.Kind == CatStateKind.Walking ? "休息一下" : "散步" };
+            toggle.Click += (_, _) => stateMachine.ToggleLongDurationState();
+
+            var outing = new MenuItem { Header = "出门玩吧" };
+            outing.Click += (_, _) => stateMachine.BeginOutingPrompt();
+            menu.Items.Add(pet);
+            menu.Items.Add(toggle);
+            menu.Items.Add(outing);
+        }
+        else
+        {
+            var disabled = new MenuItem { Header = "小猫正在准备出门", IsEnabled = false };
+            menu.Items.Add(disabled);
+        }
 
         var settingsItem = new MenuItem { Header = "设置..." };
         settingsItem.Click += (_, _) => ShowSettingsWindow();
@@ -257,8 +401,6 @@ public partial class MainWindow : Window
         var exit = new MenuItem { Header = "退出 DockCatWin" };
         exit.Click += (_, _) => ExitApplication();
 
-        menu.Items.Add(pet);
-        menu.Items.Add(toggle);
         menu.Items.Add(new Separator());
         menu.Items.Add(settingsItem);
         menu.Items.Add(visibility);
@@ -277,7 +419,9 @@ public partial class MainWindow : Window
             assetPackLoader.CustomPackIDs,
             assetPackLoader.ValidationSummary,
             assetPackLoader.CustomPacksRoot(),
-            usageStatistics)
+            usageStatistics,
+            outingCatalog,
+            collectableInventory)
         {
             Owner = this
         };
@@ -304,6 +448,144 @@ public partial class MainWindow : Window
         ApplyState(stateMachine.State);
     }
 
+    private void ShowOutingDurationBubble()
+    {
+        BubbleInputBox.Text = Math.Max(1, (int)(settings.DefaultOutingDurationSeconds / 60)).ToString();
+        ShowBubble(
+            $"要让{settings.CatName}出门多久呢？",
+            image: null,
+            showInput: true,
+            ("出门", ConfirmOutingFromBubble),
+            ("取消", CancelOutingPrompt));
+    }
+
+    private void ConfirmOutingFromBubble()
+    {
+        var minutes = int.TryParse(BubbleInputBox.Text, out var parsed)
+            ? Math.Max(1, parsed)
+            : Math.Max(1, (int)(settings.DefaultOutingDurationSeconds / 60));
+        pendingOutingDuration = TimeSpan.FromMinutes(minutes);
+        stateMachine.ConfirmOuting();
+    }
+
+    private void CancelOutingPrompt()
+    {
+        HideBubble();
+        stateMachine.CancelOutingPrompt();
+    }
+
+    private void StartConfirmedOuting()
+    {
+        var duration = pendingOutingDuration ?? TimeSpan.FromSeconds(settings.DefaultOutingDurationSeconds);
+        settings.ActiveOutingEndDate = DateTime.UtcNow.Add(duration);
+        settings.ActiveOutingDurationSeconds = duration.TotalSeconds;
+        settingsStore.Save(settings);
+        SaveUserData();
+        outingTimer.Stop();
+        outingTimer.Interval = duration <= TimeSpan.Zero ? TimeSpan.FromMilliseconds(100) : duration;
+        outingTimer.Start();
+        reminderScheduler.Clear();
+        pendingOutingDuration = null;
+        activeReminder = null;
+        HideBubble();
+        stateMachine.DepartOuting();
+    }
+
+    private bool RestoreActiveOutingIfNeeded()
+    {
+        if (settings.ActiveOutingEndDate is null)
+        {
+            return false;
+        }
+
+        var duration = TimeSpan.FromSeconds(settings.ActiveOutingDurationSeconds ?? settings.DefaultOutingDurationSeconds);
+        var remaining = settings.ActiveOutingEndDate.Value - DateTime.UtcNow;
+        stateMachine.RestoreOutingAway();
+        if (remaining <= TimeSpan.Zero)
+        {
+            ReturnFromOuting(drawReward: true, plannedDuration: duration);
+        }
+        else
+        {
+            outingTimer.Interval = remaining;
+            outingTimer.Start();
+        }
+
+        return true;
+    }
+
+    private void ResolveActiveOutingAfterWake()
+    {
+        if (!stateMachine.State.IsOuting)
+        {
+            return;
+        }
+
+        if (settings.ActiveOutingEndDate is null)
+        {
+            return;
+        }
+
+        var duration = TimeSpan.FromSeconds(settings.ActiveOutingDurationSeconds ?? settings.DefaultOutingDurationSeconds);
+        var remaining = settings.ActiveOutingEndDate.Value - DateTime.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+        {
+            ReturnFromOuting(drawReward: true, plannedDuration: duration);
+            return;
+        }
+
+        outingTimer.Stop();
+        outingTimer.Interval = remaining;
+        outingTimer.Start();
+    }
+
+    private void ReturnFromOuting(bool drawReward, TimeSpan? plannedDuration = null)
+    {
+        outingTimer.Stop();
+        if (forceEventReturn)
+        {
+            pendingOutingReward = new OutingRewardGenerator(outingCatalog).EventReward();
+        }
+        else if (drawReward)
+        {
+            pendingOutingReward = new OutingRewardGenerator(outingCatalog).RewardForDuration(
+                plannedDuration ?? TimeSpan.FromSeconds(settings.ActiveOutingDurationSeconds ?? settings.DefaultOutingDurationSeconds));
+        }
+        else
+        {
+            pendingOutingReward = null;
+        }
+
+        forceEventReturn = false;
+        settings.ActiveOutingEndDate = null;
+        settings.ActiveOutingDurationSeconds = null;
+        settingsStore.Save(settings);
+        SaveUserData();
+        Show();
+        stateMachine.ReturnFromOuting();
+    }
+
+    private void StartOutingWalkOut()
+    {
+        HideBubble();
+        activeFrames = assetPack.WalkFrames;
+        animationTimer.Interval = TimeSpan.FromSeconds(1 / assetPack.WalkFps);
+        SetFrame(0);
+        animationTimer.Start();
+        direction = 1;
+    }
+
+    private void StartOutingWalkIn()
+    {
+        activeFrames = assetPack.WalkFrames;
+        animationTimer.Interval = TimeSpan.FromSeconds(1 / assetPack.WalkFps);
+        SetFrame(0);
+        animationTimer.Start();
+        direction = -1;
+        var start = new System.Windows.Point(activityArea.Screen.Right + catWindow.CatSize.Width, activityArea.AnchorForPercent(settings.StartPositionPercent, catWindow.CatSize).Y);
+        catWindow.SetAnchor(start, activityArea.Edge);
+    }
+
     private void PollReminders()
     {
         if (activeReminder is not null || stateMachine.State.Kind == CatStateKind.Dragged)
@@ -311,7 +593,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var due = reminderScheduler.DueReminder(settings);
+        var due = reminderScheduler.DueReminder(settings, stateMachine.State.IsLongDuration);
         if (due is null)
         {
             return;
@@ -349,8 +631,20 @@ public partial class MainWindow : Window
 
     private void ShowBubble(string message, params (string Title, Action Action)[] actions)
     {
+        ShowBubble(message, image: null, showInput: false, actions);
+    }
+
+    private void ShowBubble(
+        string message,
+        ImageSource? image,
+        bool showInput,
+        params (string Title, Action Action)[] actions)
+    {
         var anchor = catWindow.CurrentAnchor(activityArea.Edge);
         BubbleText.Text = message;
+        BubbleImage.Source = image;
+        BubbleImage.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
+        BubbleInputPanel.Visibility = showInput ? Visibility.Visible : Visibility.Collapsed;
         BubbleButtons.Children.Clear();
         foreach (var action in actions)
         {
@@ -374,6 +668,9 @@ public partial class MainWindow : Window
     {
         var anchor = catWindow.CurrentAnchor(activityArea.Edge);
         BubbleBorder.Visibility = Visibility.Collapsed;
+        BubbleImage.Source = null;
+        BubbleImage.Visibility = Visibility.Collapsed;
+        BubbleInputPanel.Visibility = Visibility.Collapsed;
         BubbleButtons.Children.Clear();
         catWindow.SetExtraTopContent(0, 0);
         catWindow.SetAnchor(activityArea.ClampAnchor(anchor, catWindow.CatSize), activityArea.Edge);
@@ -395,7 +692,12 @@ public partial class MainWindow : Window
 
     private void UpdateTray()
     {
-        trayIcon?.Update(IsVisible, stateMachine.State.Kind == CatStateKind.Walking);
+        trayIcon?.Update(
+            IsVisible,
+            stateMachine.State.Kind == CatStateKind.Walking,
+            stateMachine.State.Kind == CatStateKind.OutingAway,
+            StatusText(),
+            RemainingText());
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -427,6 +729,128 @@ public partial class MainWindow : Window
     private void SaveUserData()
     {
         usageStatisticsStore.Save(usageStatistics);
-        userDataBackupStore.Save(settings, usageStatistics);
+        userDataBackupStore.Save(settings, usageStatistics, collectableInventory);
+    }
+
+    private string StatusText()
+    {
+        return stateMachine.State.Kind switch
+        {
+            CatStateKind.Walking => $"{settings.CatName}正在散步",
+            CatStateKind.Resting => $"{settings.CatName}正在休息",
+            CatStateKind.Transitioning => $"{settings.CatName}伸了个懒腰",
+            CatStateKind.Dragged => $"{settings.CatName}被抱起来了",
+            CatStateKind.OutingAsking => $"{settings.CatName}正在问出门多久",
+            CatStateKind.OutingConfirmingDeparture => $"{settings.CatName}准备出门",
+            CatStateKind.OutingLeaving => $"{settings.CatName}正在出门",
+            CatStateKind.OutingAway => $"{settings.CatName}出门中",
+            CatStateKind.OutingReturning => $"{settings.CatName}正在回家",
+            CatStateKind.OutingReturned => $"{settings.CatName}回来了",
+            _ => "DockCatWin"
+        };
+    }
+
+    private string? RemainingText()
+    {
+        if (stateMachine.State.Kind == CatStateKind.OutingAway && settings.ActiveOutingEndDate is not null)
+        {
+            var remaining = settings.ActiveOutingEndDate.Value - DateTime.UtcNow;
+            return remaining <= TimeSpan.Zero ? "马上回来" : $"剩余 {FormatDuration(remaining)}";
+        }
+
+        return null;
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalHours >= 1)
+        {
+            return $"{(int)duration.TotalHours}小时{duration.Minutes:00}分钟";
+        }
+
+        return $"{Math.Max(0, duration.Minutes)}分{duration.Seconds:00}秒";
+    }
+
+    private void ShowRecallConfirmation()
+    {
+        if (stateMachine.State.Kind != CatStateKind.OutingAway)
+        {
+            return;
+        }
+
+        Show();
+        SetRandomImage(assetPack.DialoguePoses);
+        catWindow.SetAnchor(activityArea.AnchorForPercent(settings.StartPositionPercent, catWindow.CatSize), activityArea.Edge);
+        ShowBubble(
+            $"提前召回会丢失可能的收藏品，确定要召回{settings.CatName}吗？",
+            ("确认", () =>
+            {
+                forceEventReturn = true;
+                HideBubble();
+                ReturnFromOuting(drawReward: false);
+            }),
+            ("取消", () =>
+            {
+                HideBubble();
+                Hide();
+            }));
+    }
+
+    private void ShowOutingReturnBubble()
+    {
+        switch (pendingOutingReward)
+        {
+            case OutingReward.Event eventReward:
+                if (collectableInventory.RecentNewCollectableID is not null)
+                {
+                    collectableInventory.ClearRecentNewMarker();
+                    collectableInventoryStore.Save(collectableInventory);
+                }
+                usageStatistics.OutingEvents++;
+                SaveUserData();
+                ShowBubble(
+                    $"{settings.UserSalutation}，我回来啦。{eventReward.Value.ChineseDescription}",
+                    ("欢迎回来", FinishOutingReturn));
+                break;
+            case OutingReward.Collectable collectableReward:
+                usageStatistics.OutingCollectables++;
+                collectableInventory.RecordCollectable(collectableReward.Value.Id);
+                collectableInventoryStore.Save(collectableInventory);
+                SaveUserData();
+                ShowBubble(
+                    $"我回来啦，给{settings.UserSalutation}带了礼物：{collectableReward.Value.ChineseName}",
+                    LoadBubbleImage(outingCatalog.ImagePathFor(collectableReward.Value)),
+                    showInput: false,
+                    ("收下礼物", FinishOutingReturn));
+                break;
+            default:
+                ShowBubble(
+                    $"{settings.UserSalutation}，我回来啦",
+                    ("欢迎回来", FinishOutingReturn));
+                break;
+        }
+    }
+
+    private void FinishOutingReturn()
+    {
+        pendingOutingReward = null;
+        HideBubble();
+        stateMachine.WelcomeBack();
+    }
+
+    private static BitmapImage? LoadBubbleImage(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        var image = new BitmapImage();
+        image.BeginInit();
+        image.CacheOption = BitmapCacheOption.OnLoad;
+        image.UriSource = new Uri(path, UriKind.Absolute);
+        image.EndInit();
+        image.Freeze();
+        return image;
     }
 }

@@ -18,6 +18,16 @@
 
 ## Summary of Edits
 
+- Added outing/focus mode with duration prompt, departure confirmation, walk-out, away state, recall, walk-in, and return bubble.
+- Copied original outing event and collectable resources into the Windows project.
+- Added outing catalog loading, collectable inventory persistence, and reward generation matching the original rarity probability curve.
+- Restored default outing duration in settings.
+- Added outing event and collectable counts to usage statistics and backup data.
+- Added pending/deferred reminder behavior so reminders wait for long-duration cat states.
+- Added status and remaining-time rows to tray and cat context menus.
+- Added Windows suspend/resume handling to resolve active outings after wake.
+- Generated the tray icon from the active cat image instead of using the generic application icon.
+- Added a simple collected-items list in settings.
 - Added a Windows tray icon with menu actions for petting, walking/resting toggle, settings, show/hide, and exit.
 - Added a speech bubble area above the cat with action buttons.
 - Added water and movement reminder scheduling with complete and 5-minute snooze actions.
@@ -41,6 +51,8 @@
 - Asset validation is intentionally lightweight; it reports broad availability rather than per-file diagnostics.
 - Bottom taskbar clamping now keeps the cat's lower edge at the work-area bottom; non-bottom taskbar behavior still needs real desktop layout testing.
 - Release prep creates a framework-dependent win-x64 publish folder, not a full installer yet.
+- Outing left/right taskbar behavior exits to the right side like the original implementation; further polish can make edge-specific exit paths later.
+- Windows implementation now covers the practical original feature set, but pixel-perfect menu/status presentation and platform-specific Dock icon behavior differ by design.
 
 ## Suggested Verification Steps
 
@@ -51,3 +63,5 @@
 5. Open the asset folder from settings and confirm `default-lizz` and `my-cat` are created.
 6. Change the selected display in settings, then confirm the cat repositions and stays clamped to the target work area.
 7. Run `.\scripts\publish-win.ps1` and confirm `artifacts\DockCatWin` is created.
+8. Start an outing with a short duration, confirm the cat walks out, returns, and shows either an event or collectable reward.
+9. Recall during outing and confirm the cat returns with an event-style reward.

@@ -32,6 +32,20 @@
                            TextWrapping="Wrap"
                            TextAlignment="Center"
                            Foreground="#202020" />
+                <Image x:Name="BubbleImage"
+                       Width="96"
+                       Height="96"
+                       Stretch="Uniform"
+                       Margin="0,8,0,0"
+                       Visibility="Collapsed" />
+                <StackPanel x:Name="BubbleInputPanel"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Margin="0,8,0,0"
+                            Visibility="Collapsed">
+                    <TextBox x:Name="BubbleInputBox" Width="72" TextAlignment="Right" />
+                    <TextBlock Text="分钟" VerticalAlignment="Center" Margin="6,0,0,0" />
+                </StackPanel>
                 <StackPanel x:Name="BubbleButtons"
                             Orientation="Horizontal"
                             HorizontalAlignment="Center"

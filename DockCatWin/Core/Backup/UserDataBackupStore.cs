@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using DockCatWin.Core.Outing;
 using DockCatWin.Core.Settings;
 using DockCatWin.Core.Statistics;
 
@@ -23,7 +24,7 @@ public sealed class UserDataBackupStore
         backupFilePath = Path.Combine(root, "user-data-backup.json");
     }
 
-    public void Save(AppSettings settings, UsageStatistics statistics)
+    public void Save(AppSettings settings, UsageStatistics statistics, CollectableInventory inventory)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(backupFilePath)!);
         var snapshot = new
@@ -32,7 +33,8 @@ public sealed class UserDataBackupStore
             generatedAt = DateTime.UtcNow,
             app = "DockCatWin",
             settings,
-            usageStatistics = statistics
+            usageStatistics = statistics,
+            collectableInventory = inventory
         };
         File.WriteAllText(backupFilePath, JsonSerializer.Serialize(snapshot, JsonOptions));
     }
