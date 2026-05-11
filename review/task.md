@@ -1,6 +1,6 @@
 # Task
 
-- Task description: Keep DockCatWin cat from being dragged below the taskbar boundary, while preserving the previous 1-5 feature work.
+- Task description: Complete remaining non-outing DockCatWin work: display selection, display change clamping, usage statistics, data backup, and release prep.
 - Mode: Feature
 - Target files:
   - `DockCatWin/DockCatWin.csproj`
@@ -11,10 +11,13 @@
   - `DockCatWin/SettingsWindow.xaml.cs`
   - `DockCatWin/Core/Assets/*`
   - `DockCatWin/Core/Reminder/*`
+  - `DockCatWin/Core/Statistics/*`
+  - `DockCatWin/Core/Backup/*`
   - `DockCatWin/Platform/TaskbarGeometry.cs`
   - `DockCatWin/UI/Bubble/*`
   - `DockCatWin/UI/Tray/*`
   - `README.md`
+  - `scripts/*`
 - Constraints:
   - Keep the existing macOS repository untouched.
   - Use .NET 8 WPF for the first Windows implementation.
@@ -22,5 +25,6 @@
   - Do not implement outing/focus/collectable features yet.
   - Keep the existing macOS repository untouched.
   - Preserve the current WPF structure and keep this pass focused on daily-use Windows behavior.
-  - Clamp drag results so the cat cannot end below the taskbar/work-area boundary.
+  - Do not implement outing/focus/collectable features yet.
+  - Add pragmatic release preparation without introducing installer complexity.
   - Build verification should pass with .NET 8 SDK.

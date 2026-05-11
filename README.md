@@ -12,11 +12,20 @@ DockCatWin is a first Windows port of DockCat. This repository starts with a min
 - speech bubble actions
 - basic settings persistence
 - custom asset pack folder with fallback to the default cat
+- display selection and display-change clamping
+- usage statistics and local data backup
 
 Custom asset packs live under:
 
 ```text
 %APPDATA%\DockCatWin\AssetPacks
+```
+
+Settings, usage statistics, and backups live under:
+
+```text
+%APPDATA%\DockCatWin
+%APPDATA%\DockCatWin\DataBackup\user-data-backup.json
 ```
 
 ## Requirements
@@ -34,4 +43,16 @@ dotnet run --project .\DockCatWin\DockCatWin.csproj
 
 ```powershell
 dotnet build .\DockCatWin\DockCatWin.csproj
+```
+
+## Publish
+
+```powershell
+.\scripts\publish-win.ps1
+```
+
+The publish output is written to:
+
+```text
+artifacts\DockCatWin
 ```

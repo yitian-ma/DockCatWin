@@ -17,6 +17,7 @@ public sealed class AppSettings
     public double WalkBaseSpeed { get; set; } = 36;
     public double CatScalePercent { get; set; } = 10;
     public double StartPositionPercent { get; set; } = 75;
+    public string? ActivityDisplayID { get; set; }
 
     public static AppSettings Defaults => new();
 
@@ -38,7 +39,8 @@ public sealed class AppSettings
             WalkDurationMaximumSeconds = WalkDurationMaximumSeconds,
             WalkBaseSpeed = WalkBaseSpeed,
             CatScalePercent = CatScalePercent,
-            StartPositionPercent = StartPositionPercent
+            StartPositionPercent = StartPositionPercent,
+            ActivityDisplayID = ActivityDisplayID
         };
     }
 
@@ -48,6 +50,7 @@ public sealed class AppSettings
         CatIdentifier = string.IsNullOrWhiteSpace(CatIdentifier) ? "Lizz" : CatIdentifier.Trim();
         UserSalutation = string.IsNullOrWhiteSpace(UserSalutation) ? "妈妈" : UserSalutation.Trim();
         SelectedAssetPackID = string.IsNullOrWhiteSpace(SelectedAssetPackID) ? "default-lizz" : SelectedAssetPackID.Trim();
+        ActivityDisplayID = string.IsNullOrWhiteSpace(ActivityDisplayID) ? null : ActivityDisplayID.Trim();
         CatScalePercent = Math.Clamp(CatScalePercent, 4, 30);
         StartPositionPercent = Math.Clamp(StartPositionPercent, 0, 100);
         WalkBaseSpeed = Math.Clamp(WalkBaseSpeed, 10, 180);

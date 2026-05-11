@@ -21,6 +21,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="120" />
@@ -43,20 +45,23 @@
         <TextBlock Grid.Row="3" Grid.Column="0" Text="对你的称呼" VerticalAlignment="Center" Margin="0,0,12,10" />
         <TextBox x:Name="UserSalutationBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,10" />
 
-        <TextBlock Grid.Row="4" Grid.Column="0" Text="显示缩放" VerticalAlignment="Center" Margin="0,0,12,10" />
-        <DockPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,10">
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="显示器" VerticalAlignment="Center" Margin="0,0,12,10" />
+        <ComboBox x:Name="DisplayBox" Grid.Row="4" Grid.Column="1" DisplayMemberPath="Title" SelectedValuePath="Id" Margin="0,0,0,10" />
+
+        <TextBlock Grid.Row="5" Grid.Column="0" Text="显示缩放" VerticalAlignment="Center" Margin="0,0,12,10" />
+        <DockPanel Grid.Row="5" Grid.Column="1" Margin="0,0,0,10">
             <TextBlock Text="%" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
             <TextBox x:Name="CatScaleBox" />
         </DockPanel>
 
-        <TextBlock Grid.Row="5" Grid.Column="0" Text="起始位置" VerticalAlignment="Center" Margin="0,0,12,10" />
-        <DockPanel Grid.Row="5" Grid.Column="1" Margin="0,0,0,10">
+        <TextBlock Grid.Row="6" Grid.Column="0" Text="起始位置" VerticalAlignment="Center" Margin="0,0,12,10" />
+        <DockPanel Grid.Row="6" Grid.Column="1" Margin="0,0,0,10">
             <TextBlock Text="%" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
             <TextBox x:Name="StartPositionBox" />
         </DockPanel>
 
-        <TextBlock Grid.Row="6" Grid.Column="0" Text="休息时长" VerticalAlignment="Center" Margin="0,0,12,10" />
-        <DockPanel Grid.Row="6" Grid.Column="1" Margin="0,0,0,10">
+        <TextBlock Grid.Row="7" Grid.Column="0" Text="休息时长" VerticalAlignment="Center" Margin="0,0,12,10" />
+        <DockPanel Grid.Row="7" Grid.Column="1" Margin="0,0,0,10">
             <TextBlock Text="分钟" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
             <StackPanel Orientation="Horizontal">
                 <TextBox x:Name="RestMinBox" Width="72" />
@@ -65,8 +70,8 @@
             </StackPanel>
         </DockPanel>
 
-        <TextBlock Grid.Row="7" Grid.Column="0" Text="散步时长" VerticalAlignment="Center" Margin="0,0,12,10" />
-        <DockPanel Grid.Row="7" Grid.Column="1" Margin="0,0,0,10">
+        <TextBlock Grid.Row="8" Grid.Column="0" Text="散步时长" VerticalAlignment="Center" Margin="0,0,12,10" />
+        <DockPanel Grid.Row="8" Grid.Column="1" Margin="0,0,0,10">
             <TextBlock Text="分钟" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
             <StackPanel Orientation="Horizontal">
                 <TextBox x:Name="WalkMinBox" Width="72" />
@@ -75,29 +80,32 @@
             </StackPanel>
         </DockPanel>
 
-        <TextBlock Grid.Row="8" Grid.Column="0" Text="喝水提醒" VerticalAlignment="Center" Margin="0,0,12,10" />
-        <DockPanel Grid.Row="8" Grid.Column="1" Margin="0,0,0,10">
+        <TextBlock Grid.Row="9" Grid.Column="0" Text="喝水提醒" VerticalAlignment="Center" Margin="0,0,12,10" />
+        <DockPanel Grid.Row="9" Grid.Column="1" Margin="0,0,0,10">
             <TextBlock Text="分钟" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
             <TextBox x:Name="WaterReminderBox" />
         </DockPanel>
 
-        <TextBlock Grid.Row="9" Grid.Column="0" Text="走动提醒" VerticalAlignment="Center" Margin="0,0,12,10" />
-        <DockPanel Grid.Row="9" Grid.Column="1" Margin="0,0,0,10">
+        <TextBlock Grid.Row="10" Grid.Column="0" Text="走动提醒" VerticalAlignment="Center" Margin="0,0,12,10" />
+        <DockPanel Grid.Row="10" Grid.Column="1" Margin="0,0,0,10">
             <TextBlock Text="分钟" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0" />
             <TextBox x:Name="MovementReminderBox" />
         </DockPanel>
 
-        <TextBlock Grid.Row="10" Grid.Column="0" Text="启用提醒" VerticalAlignment="Center" Margin="0,0,12,10" />
-        <CheckBox x:Name="RemindersEnabledBox" Grid.Row="10" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,0,10" />
+        <TextBlock Grid.Row="11" Grid.Column="0" Text="启用提醒" VerticalAlignment="Center" Margin="0,0,12,10" />
+        <CheckBox x:Name="RemindersEnabledBox" Grid.Row="11" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,0,10" />
+
+        <TextBlock Grid.Row="12" Grid.Column="0" Text="使用统计" VerticalAlignment="Top" Margin="0,0,12,10" />
+        <TextBlock x:Name="StatisticsText" Grid.Row="12" Grid.Column="1" TextWrapping="Wrap" Foreground="#444444" Margin="0,0,0,10" />
 
         <TextBlock x:Name="AssetPackStatusText"
-                   Grid.Row="11"
+                   Grid.Row="13"
                    Grid.ColumnSpan="2"
                    TextWrapping="Wrap"
                    Foreground="#666666"
                    Margin="0,0,0,16" />
 
-        <StackPanel Grid.Row="12" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="14" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="取消" Width="78" Margin="0,0,8,0" Click="Cancel_Click" />
             <Button Content="保存" Width="78" IsDefault="True" Click="Save_Click" />
         </StackPanel>

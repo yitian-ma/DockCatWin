@@ -26,6 +26,11 @@
 - Added default pack seeding, `my-cat` template generation, manifest error tolerance, and fallback to default cat resources when custom packs are incomplete.
 - Hid outing-specific settings from the UI for now.
 - Clamped dragged cat anchors so the cat cannot end below the bottom taskbar/work-area boundary.
+- Added display selection in settings and reclamping when Windows display settings change.
+- Added usage statistics for companion time and completed reminders.
+- Added local user data backup under `%APPDATA%\DockCatWin\DataBackup`.
+- Added a PowerShell publish script for Windows release builds.
+- Verified the publish script creates `artifacts\DockCatWin`.
 - Updated README with the new Windows behavior and asset pack location.
 
 ## Risk Analysis
@@ -35,6 +40,7 @@
 - The tray icon uses the default system application icon until a proper `.ico` asset is added.
 - Asset validation is intentionally lightweight; it reports broad availability rather than per-file diagnostics.
 - Bottom taskbar clamping now keeps the cat's lower edge at the work-area bottom; non-bottom taskbar behavior still needs real desktop layout testing.
+- Release prep creates a framework-dependent win-x64 publish folder, not a full installer yet.
 
 ## Suggested Verification Steps
 
@@ -43,3 +49,5 @@
 3. Confirm the tray menu can show/hide, open settings, toggle walking/resting, and exit.
 4. Temporarily lower reminder intervals in settings and confirm reminder bubbles appear with complete/snooze actions.
 5. Open the asset folder from settings and confirm `default-lizz` and `my-cat` are created.
+6. Change the selected display in settings, then confirm the cat repositions and stays clamped to the target work area.
+7. Run `.\scripts\publish-win.ps1` and confirm `artifacts\DockCatWin` is created.

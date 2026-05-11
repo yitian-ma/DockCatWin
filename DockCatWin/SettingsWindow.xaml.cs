@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.IO;
 using System.Windows;
+using DockCatWin.Core.Statistics;
+using DockCatWin.Platform;
 using DockCatWin.Core.Settings;
 
 namespace DockCatWin;
@@ -16,18 +18,21 @@ public partial class SettingsWindow : Window
         IEnumerable<string> assetPackIDs,
         Func<IEnumerable<string>> assetPackIDsProvider,
         Func<string, string> assetPackStatusProvider,
-        string assetPacksRoot)
+        string assetPacksRoot,
+        UsageStatistics statistics)
     {
         InitializeComponent();
         this.assetPackIDsProvider = assetPackIDsProvider;
         this.assetPackStatusProvider = assetPackStatusProvider;
         this.assetPacksRoot = assetPacksRoot;
+        Statistics = statistics.Clone();
         Settings = settings.Clone();
         PopulateAssetPacks(assetPackIDs);
         Populate(Settings);
     }
 
     public AppSettings Settings { get; private set; }
+    public UsageStatistics Statistics { get; }
 
     private void Populate(AppSettings settings)
     {
@@ -35,6 +40,7 @@ public partial class SettingsWindow : Window
         CatIdentifierBox.Text = settings.CatIdentifier;
         AssetPackBox.Text = settings.SelectedAssetPackID;
         UserSalutationBox.Text = settings.UserSalutation;
+        PopulateDisplays(settings.ActivityDisplayID);
         CatScaleBox.Text = Format(settings.CatScalePercent);
         StartPositionBox.Text = Format(settings.StartPositionPercent);
         RestMinBox.Text = Format(settings.RestDurationMinimumSeconds / 60);
@@ -44,6 +50,7 @@ public partial class SettingsWindow : Window
         WaterReminderBox.Text = Format(settings.WaterReminderIntervalSeconds / 60);
         MovementReminderBox.Text = Format(settings.MovementReminderIntervalSeconds / 60);
         RemindersEnabledBox.IsChecked = settings.RemindersEnabled;
+        StatisticsText.Text = StatisticsTextValue();
         UpdateAssetPackStatus();
     }
 
@@ -105,6 +112,7 @@ public partial class SettingsWindow : Window
         settings.CatIdentifier = CatIdentifierBox.Text;
         settings.SelectedAssetPackID = AssetPackBox.Text;
         settings.UserSalutation = UserSalutationBox.Text;
+        settings.ActivityDisplayID = DisplayBox.SelectedValue as string;
         settings.CatScalePercent = scale;
         settings.StartPositionPercent = startPosition;
         settings.RestDurationMinimumSeconds = restMin * 60;
@@ -132,6 +140,28 @@ public partial class SettingsWindow : Window
         {
             AssetPackBox.Text = current;
         }
+    }
+
+    private void PopulateDisplays(string? selectedDisplayID)
+    {
+        DisplayBox.Items.Clear();
+        DisplayBox.Items.Add(new DisplayOption("", "主显示器"));
+        foreach (var option in TaskbarGeometry.DisplayOptions())
+        {
+            DisplayBox.Items.Add(option);
+        }
+
+        DisplayBox.SelectedValue = selectedDisplayID ?? "";
+        if (DisplayBox.SelectedIndex < 0)
+        {
+            DisplayBox.SelectedIndex = 0;
+        }
+    }
+
+    private string StatisticsTextValue()
+    {
+        var total = TimeSpan.FromSeconds(Statistics.TotalCompanionSeconds);
+        return $"陪伴 {Math.Floor(total.TotalHours):0}小时{total.Minutes:00}分钟，喝水完成 {Statistics.CompletedWaterReminders} 次，走动完成 {Statistics.CompletedMovementReminders} 次";
     }
 
     private void UpdateAssetPackStatus()

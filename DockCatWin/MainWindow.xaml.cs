@@ -4,10 +4,13 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using DockCatWin.Core.Assets;
+using DockCatWin.Core.Backup;
 using DockCatWin.Core.Reminder;
 using DockCatWin.Core.Settings;
 using DockCatWin.Core.StateMachine;
+using DockCatWin.Core.Statistics;
 using DockCatWin.Platform;
 using DockCatWin.UI.CatWindow;
 using DockCatWin.UI.Tray;
@@ -21,7 +24,10 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer movementTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly DispatcherTimer stateTimer = new();
     private readonly DispatcherTimer reminderTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+    private readonly DispatcherTimer statisticsTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     private readonly SettingsStore settingsStore = new();
+    private readonly UsageStatisticsStore usageStatisticsStore = new();
+    private readonly UserDataBackupStore userDataBackupStore = new();
     private readonly AssetPackLoader assetPackLoader = new();
     private readonly CatStateMachine stateMachine = new();
     private readonly Random random = new();
@@ -31,6 +37,7 @@ public partial class MainWindow : Window
     private CatWindowController catWindow = null!;
     private ReminderScheduler reminderScheduler = null!;
     private TrayIconController trayIcon = null!;
+    private UsageStatistics usageStatistics = new();
     private TaskbarActivityArea activityArea;
     private IReadOnlyList<BitmapImage> activeFrames = [];
     private int frameIndex;
@@ -56,13 +63,20 @@ public partial class MainWindow : Window
         stateMachine.Transitioned += (_, newState) => ApplyState(newState);
         stateMachine.DurationScheduled += ScheduleStateTimer;
         reminderTimer.Tick += (_, _) => PollReminders();
+        statisticsTimer.Tick += (_, _) => RecordCompanionMinute();
         Closing += MainWindow_Closing;
-        Closed += (_, _) => trayIcon?.Dispose();
+        Closed += (_, _) =>
+        {
+            SystemEvents.DisplaySettingsChanged -= SystemEvents_DisplaySettingsChanged;
+            SaveUserData();
+            trayIcon?.Dispose();
+        };
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         settings = settingsStore.Load();
+        usageStatistics = usageStatisticsStore.Load();
         assetPack = assetPackLoader.LoadSelectedPack(settings.SelectedAssetPackID);
         reminderScheduler = new ReminderScheduler(settings);
         trayIcon = new TrayIconController();
@@ -78,9 +92,11 @@ public partial class MainWindow : Window
             new WpfSize(assetPack.SourceWidth, assetPack.SourceHeight));
 
         ApplySettings(reposition: true);
+        SystemEvents.DisplaySettingsChanged += SystemEvents_DisplaySettingsChanged;
         stateMachine.Start();
         movementTimer.Start();
         reminderTimer.Start();
+        statisticsTimer.Start();
         UpdateTray();
     }
 
@@ -90,7 +106,7 @@ public partial class MainWindow : Window
         catWindow.SetImageScale(settings.CatScalePercent);
 
         var dpi = VisualTreeHelper.GetDpi(this);
-        activityArea = TaskbarGeometry.Current(dpi.DpiScaleX, dpi.DpiScaleY);
+        activityArea = TaskbarGeometry.Current(dpi.DpiScaleX, dpi.DpiScaleY, settings.ActivityDisplayID);
         stateMachine.UpdateDurations(
             TimeSpan.FromSeconds(settings.WalkDurationMinimumSeconds),
             TimeSpan.FromSeconds(settings.WalkDurationMaximumSeconds),
@@ -103,6 +119,16 @@ public partial class MainWindow : Window
             catWindow.SetAnchor(anchor, activityArea.Edge);
         }
         UpdateTray();
+    }
+
+    private void SystemEvents_DisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            var anchor = catWindow.CurrentAnchor(activityArea.Edge);
+            ApplySettings(reposition: false);
+            catWindow.SetAnchor(activityArea.ClampAnchor(anchor, catWindow.CatSize), activityArea.Edge);
+        });
     }
 
     private void ApplyState(CatState state)
@@ -250,7 +276,8 @@ public partial class MainWindow : Window
             assetPackLoader.CustomPackIDs(),
             assetPackLoader.CustomPackIDs,
             assetPackLoader.ValidationSummary,
-            assetPackLoader.CustomPacksRoot())
+            assetPackLoader.CustomPacksRoot(),
+            usageStatistics)
         {
             Owner = this
         };
@@ -262,6 +289,7 @@ public partial class MainWindow : Window
 
         settings = window.Settings;
         settingsStore.Save(settings);
+        SaveUserData();
         reminderScheduler.Reset(settings);
         if (settings.SelectedAssetPackID != previousAssetPackID)
         {
@@ -299,6 +327,15 @@ public partial class MainWindow : Window
     private void CompleteReminder(ReminderType reminder)
     {
         reminderScheduler.Complete(reminder, settings);
+        if (reminder == ReminderType.Water)
+        {
+            usageStatistics.CompletedWaterReminders++;
+        }
+        else
+        {
+            usageStatistics.CompletedMovementReminders++;
+        }
+        SaveUserData();
         activeReminder = null;
         HideBubble();
     }
@@ -376,7 +413,20 @@ public partial class MainWindow : Window
     private void ExitApplication()
     {
         isExitRequested = true;
+        SaveUserData();
         Close();
         System.Windows.Application.Current.Shutdown();
+    }
+
+    private void RecordCompanionMinute()
+    {
+        usageStatistics.TotalCompanionSeconds += statisticsTimer.Interval.TotalSeconds;
+        SaveUserData();
+    }
+
+    private void SaveUserData()
+    {
+        usageStatisticsStore.Save(usageStatistics);
+        userDataBackupStore.Save(settings, usageStatistics);
     }
 }

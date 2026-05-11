@@ -14,6 +14,8 @@ public enum TaskbarEdge
     Unknown
 }
 
+public sealed record DisplayOption(string Id, string Title);
+
 internal readonly record struct TaskbarActivityArea(
     Rect Screen,
     Rect WorkingArea,
@@ -91,9 +93,18 @@ internal readonly record struct TaskbarActivityArea(
 
 internal static class TaskbarGeometry
 {
-    public static TaskbarActivityArea Current(double dpiScaleX, double dpiScaleY)
+    public static IReadOnlyList<DisplayOption> DisplayOptions()
     {
-        var screen = Forms.Screen.PrimaryScreen ?? Forms.Screen.AllScreens.First();
+        return Forms.Screen.AllScreens
+            .Select(screen => new DisplayOption(
+                screen.DeviceName,
+                $"{screen.DeviceName} {screen.Bounds.Width}x{screen.Bounds.Height}" + (screen.Primary ? " 主显示器" : "")))
+            .ToList();
+    }
+
+    public static TaskbarActivityArea Current(double dpiScaleX, double dpiScaleY, string? displayID)
+    {
+        var screen = SelectedScreen(displayID);
         var bounds = ToDip(screen.Bounds, dpiScaleX, dpiScaleY);
         var working = ToDip(screen.WorkingArea, dpiScaleX, dpiScaleY);
         var edge = InferEdge(bounds, working);
@@ -106,6 +117,20 @@ internal static class TaskbarGeometry
             MaxX: working.Right,
             MinY: working.Top,
             MaxY: working.Bottom);
+    }
+
+    private static Forms.Screen SelectedScreen(string? displayID)
+    {
+        if (!string.IsNullOrWhiteSpace(displayID))
+        {
+            var selected = Forms.Screen.AllScreens.FirstOrDefault(screen => screen.DeviceName == displayID);
+            if (selected is not null)
+            {
+                return selected;
+            }
+        }
+
+        return Forms.Screen.PrimaryScreen ?? Forms.Screen.AllScreens.First();
     }
 
     private static Rect ToDip(System.Drawing.Rectangle rectangle, double dpiScaleX, double dpiScaleY)
