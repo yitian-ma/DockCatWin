@@ -1,9 +1,11 @@
 using System.Windows;
 using Forms = System.Windows.Forms;
+using WpfPoint = System.Windows.Point;
+using WpfSize = System.Windows.Size;
 
 namespace DockCatWin.Platform;
 
-internal enum TaskbarEdge
+public enum TaskbarEdge
 {
     Bottom,
     Top,
@@ -16,9 +18,68 @@ internal readonly record struct TaskbarActivityArea(
     Rect Screen,
     Rect WorkingArea,
     TaskbarEdge Edge,
-    double BaselineY,
     double MinX,
-    double MaxX);
+    double MaxX,
+    double MinY,
+    double MaxY)
+{
+    public bool UsesHorizontalMovement => Edge is TaskbarEdge.Bottom or TaskbarEdge.Top or TaskbarEdge.Unknown;
+
+    public WpfPoint AnchorForPercent(double percent, WpfSize catSize)
+    {
+        var normalized = Math.Clamp(percent, 0, 100) / 100;
+
+        return Edge switch
+        {
+            TaskbarEdge.Top => new WpfPoint(
+                MinX + Math.Max(0, MaxX - MinX - catSize.Width) * normalized,
+                WorkingArea.Top + catSize.Height - 6),
+            TaskbarEdge.Left => new WpfPoint(
+                WorkingArea.Left + catSize.Width - 6,
+                MinY + Math.Max(0, MaxY - MinY - catSize.Height) * normalized + catSize.Height),
+            TaskbarEdge.Right => new WpfPoint(
+                WorkingArea.Right - 6,
+                MinY + Math.Max(0, MaxY - MinY - catSize.Height) * normalized + catSize.Height),
+            _ => new WpfPoint(
+                MinX + Math.Max(0, MaxX - MinX - catSize.Width) * normalized,
+                WorkingArea.Bottom + 6)
+        };
+    }
+
+    public WpfPoint ClampAnchor(WpfPoint anchor, WpfSize catSize)
+    {
+        return Edge switch
+        {
+            TaskbarEdge.Left or TaskbarEdge.Right => new WpfPoint(
+                anchor.X,
+                Math.Clamp(anchor.Y, MinY + catSize.Height, MaxY)),
+            _ => new WpfPoint(
+                Math.Clamp(anchor.X, MinX, MaxX - catSize.Width),
+                anchor.Y)
+        };
+    }
+
+    public WpfPoint MoveAnchor(WpfPoint anchor, double delta, WpfSize catSize)
+    {
+        return UsesHorizontalMovement
+            ? ClampAnchor(new WpfPoint(anchor.X + delta, anchor.Y), catSize)
+            : ClampAnchor(new WpfPoint(anchor.X, anchor.Y + delta), catSize);
+    }
+
+    public bool IsAtStart(WpfPoint anchor, WpfSize catSize)
+    {
+        return UsesHorizontalMovement
+            ? anchor.X <= MinX + 0.1
+            : anchor.Y <= MinY + catSize.Height + 0.1;
+    }
+
+    public bool IsAtEnd(WpfPoint anchor, WpfSize catSize)
+    {
+        return UsesHorizontalMovement
+            ? anchor.X + catSize.Width >= MaxX - 0.1
+            : anchor.Y >= MaxY - 0.1;
+    }
+}
 
 internal static class TaskbarGeometry
 {
@@ -29,20 +90,14 @@ internal static class TaskbarGeometry
         var working = ToDip(screen.WorkingArea, dpiScaleX, dpiScaleY);
         var edge = InferEdge(bounds, working);
 
-        var baselineY = edge switch
-        {
-            TaskbarEdge.Top => working.Top,
-            TaskbarEdge.Bottom => working.Bottom,
-            _ => working.Bottom
-        };
-
         return new TaskbarActivityArea(
             Screen: bounds,
             WorkingArea: working,
             Edge: edge,
-            BaselineY: baselineY,
             MinX: working.Left,
-            MaxX: working.Right);
+            MaxX: working.Right,
+            MinY: working.Top,
+            MaxY: working.Bottom);
     }
 
     private static Rect ToDip(System.Drawing.Rectangle rectangle, double dpiScaleX, double dpiScaleY)

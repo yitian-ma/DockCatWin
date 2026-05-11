@@ -10,7 +10,7 @@
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
-        SizeToContent="WidthAndHeight">
+        SizeToContent="Manual">
     <Grid Background="Transparent">
         <Image x:Name="CatImage"
                Width="150"

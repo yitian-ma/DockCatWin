@@ -1,25 +1,35 @@
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using DockCatWin.Core.Assets;
+using DockCatWin.Core.Settings;
+using DockCatWin.Core.StateMachine;
 using DockCatWin.Platform;
+using DockCatWin.UI.CatWindow;
+using WpfSize = System.Windows.Size;
 
 namespace DockCatWin;
 
 public partial class MainWindow : Window
 {
-    private readonly DispatcherTimer animationTimer = new() { Interval = TimeSpan.FromMilliseconds(140) };
+    private readonly DispatcherTimer animationTimer = new();
     private readonly DispatcherTimer movementTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
-    private readonly DispatcherTimer stateTimer = new() { Interval = TimeSpan.FromSeconds(8) };
-    private readonly List<BitmapImage> walkFrames = [];
-    private readonly List<BitmapImage> restingFrames = [];
+    private readonly DispatcherTimer stateTimer = new();
+    private readonly SettingsStore settingsStore = new();
+    private readonly AssetPackLoader assetPackLoader = new();
+    private readonly CatStateMachine stateMachine = new();
+    private readonly Random random = new();
+
+    private AppSettings settings = AppSettings.Defaults;
+    private CatAssetPack assetPack = null!;
+    private CatWindowController catWindow = null!;
+    private TaskbarActivityArea activityArea;
+    private IReadOnlyList<BitmapImage> activeFrames = [];
     private int frameIndex;
     private int direction = 1;
-    private bool isWalking = true;
-    private TaskbarActivityArea activityArea;
 
     public MainWindow()
     {
@@ -28,123 +38,210 @@ public partial class MainWindow : Window
         Loaded += OnLoaded;
         animationTimer.Tick += (_, _) => AdvanceAnimation();
         movementTimer.Tick += (_, _) => AdvancePosition();
-        stateTimer.Tick += (_, _) => ToggleState();
+        stateTimer.Tick += (_, _) =>
+        {
+            stateTimer.Stop();
+            if (stateTimer.Tag is CatState scheduledState)
+            {
+                stateMachine.FinishScheduledState(scheduledState);
+            }
+        };
+        stateMachine.Transitioned += (_, newState) => ApplyState(newState);
+        stateMachine.DurationScheduled += ScheduleStateTimer;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        settings = settingsStore.Load();
+        assetPack = assetPackLoader.LoadSelectedPack(settings.SelectedAssetPackID);
+        catWindow = new CatWindowController(
+            this,
+            CatImage,
+            MirrorTransform,
+            new WpfSize(assetPack.SourceWidth, assetPack.SourceHeight));
+
+        ApplySettings(reposition: true);
+        stateMachine.Start();
+        movementTimer.Start();
+    }
+
+    private void ApplySettings(bool reposition)
+    {
+        settings.Normalize();
+        catWindow.SetImageScale(settings.CatScalePercent);
+
         var dpi = VisualTreeHelper.GetDpi(this);
         activityArea = TaskbarGeometry.Current(dpi.DpiScaleX, dpi.DpiScaleY);
+        stateMachine.UpdateDurations(
+            TimeSpan.FromSeconds(settings.WalkDurationMinimumSeconds),
+            TimeSpan.FromSeconds(settings.WalkDurationMaximumSeconds),
+            TimeSpan.FromSeconds(settings.RestDurationMinimumSeconds),
+            TimeSpan.FromSeconds(settings.RestDurationMaximumSeconds));
 
-        LoadImages();
-        CatImage.Source = walkFrames.FirstOrDefault() ?? restingFrames.FirstOrDefault();
-        PositionAtTaskbar();
+        if (reposition)
+        {
+            var anchor = activityArea.AnchorForPercent(settings.StartPositionPercent, catWindow.CatSize);
+            catWindow.SetAnchor(anchor, activityArea.Edge);
+        }
+    }
 
-        animationTimer.Start();
-        movementTimer.Start();
+    private void ApplyState(CatState state)
+    {
+        animationTimer.Stop();
+        activeFrames = [];
+        frameIndex = 0;
+
+        switch (state.Kind)
+        {
+            case CatStateKind.Walking:
+                activeFrames = assetPack.WalkFrames;
+                animationTimer.Interval = TimeSpan.FromSeconds(1 / assetPack.WalkFps);
+                SetFrame(0);
+                animationTimer.Start();
+                break;
+            case CatStateKind.Resting:
+                SetRandomImage(assetPack.RestingPoses);
+                break;
+            case CatStateKind.Transitioning:
+                SetRandomImage(assetPack.TransitionPoses);
+                break;
+            case CatStateKind.Dragged:
+                SetRandomImage(assetPack.HeldPoses);
+                break;
+        }
+    }
+
+    private void ScheduleStateTimer(CatState scheduledState, TimeSpan duration)
+    {
+        stateTimer.Stop();
+        stateTimer.Interval = duration;
+        stateTimer.Tag = scheduledState;
         stateTimer.Start();
-    }
-
-    private void LoadImages()
-    {
-        var root = Path.Combine(AppContext.BaseDirectory, "Resources", "DefaultCat");
-        AddImages(Path.Combine(root, "animations", "walk"), walkFrames);
-        AddImages(Path.Combine(root, "poses", "resting"), restingFrames);
-    }
-
-    private static void AddImages(string directory, List<BitmapImage> target)
-    {
-        if (!Directory.Exists(directory))
-        {
-            return;
-        }
-
-        foreach (var file in Directory.EnumerateFiles(directory, "*.png").OrderBy(Path.GetFileName))
-        {
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.UriSource = new Uri(file, UriKind.Absolute);
-            image.EndInit();
-            image.Freeze();
-            target.Add(image);
-        }
-    }
-
-    private void PositionAtTaskbar()
-    {
-        Left = activityArea.MinX + (activityArea.MaxX - activityArea.MinX - Width) * 0.75;
-        Top = activityArea.BaselineY - Height + 6;
     }
 
     private void AdvanceAnimation()
     {
-        var frames = isWalking ? walkFrames : restingFrames;
-        if (frames.Count == 0)
+        if (activeFrames.Count == 0)
         {
             return;
         }
 
-        frameIndex = (frameIndex + 1) % frames.Count;
-        CatImage.Source = frames[frameIndex];
+        frameIndex = (frameIndex + 1) % activeFrames.Count;
+        SetFrame(frameIndex);
     }
 
     private void AdvancePosition()
     {
-        if (!isWalking)
+        if (stateMachine.State.Kind != CatStateKind.Walking)
         {
             return;
         }
 
-        Left += direction * 1.6;
-        if (Left <= activityArea.MinX)
+        var current = catWindow.CurrentAnchor(activityArea.Edge);
+        var delta = direction * settings.WalkBaseSpeed * movementTimer.Interval.TotalSeconds;
+        var moved = activityArea.MoveAnchor(current, delta, catWindow.CatSize);
+
+        if (activityArea.IsAtStart(moved, catWindow.CatSize))
         {
-            Left = activityArea.MinX;
             direction = 1;
         }
-        else if (Left + Width >= activityArea.MaxX)
+        else if (activityArea.IsAtEnd(moved, catWindow.CatSize))
         {
-            Left = activityArea.MaxX - Width;
             direction = -1;
         }
 
-        MirrorTransform.ScaleX = direction < 0 ? -1 : 1;
+        catWindow.SetAnchor(moved, activityArea.Edge);
+        catWindow.SetMirrored(activityArea.UsesHorizontalMovement && direction < 0);
     }
 
-    private void ToggleState()
+    private void SetFrame(int index)
     {
-        isWalking = !isWalking;
-        frameIndex = 0;
-
-        if (!isWalking && restingFrames.Count > 0)
+        if (index >= 0 && index < activeFrames.Count)
         {
-            CatImage.Source = restingFrames[Random.Shared.Next(restingFrames.Count)];
+            catWindow.SetImage(activeFrames[index]);
         }
+    }
+
+    private void SetRandomImage(IReadOnlyList<BitmapImage> images)
+    {
+        if (images.Count > 0)
+        {
+            catWindow.SetImage(images[random.Next(images.Count)]);
+            return;
+        }
+
+        catWindow.SetImage(assetPack.WalkFrames.FirstOrDefault());
     }
 
     private void CatImage_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 2)
         {
-            ToggleState();
+            stateMachine.Pet();
+            e.Handled = true;
             return;
         }
 
+        stateTimer.Stop();
+        stateMachine.BeginDrag();
         DragMove();
+        var anchor = catWindow.CurrentAnchor(activityArea.Edge);
+        catWindow.SetAnchor(activityArea.ClampAnchor(anchor, catWindow.CatSize), activityArea.Edge);
+        stateMachine.EndDrag();
+        e.Handled = true;
     }
 
     private void CatImage_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         var menu = new ContextMenu();
-        var toggle = new MenuItem { Header = isWalking ? "休息一下" : "散步" };
-        toggle.Click += (_, _) => ToggleState();
+
+        var pet = new MenuItem { Header = $"摸摸{settings.CatName}" };
+        pet.Click += (_, _) => stateMachine.Pet();
+
+        var toggle = new MenuItem { Header = stateMachine.State.Kind == CatStateKind.Walking ? "休息一下" : "散步" };
+        toggle.Click += (_, _) => stateMachine.ToggleLongDurationState();
+
+        var settingsItem = new MenuItem { Header = "设置..." };
+        settingsItem.Click += (_, _) => ShowSettingsWindow();
 
         var exit = new MenuItem { Header = "退出 DockCatWin" };
         exit.Click += (_, _) => Close();
 
+        menu.Items.Add(pet);
         menu.Items.Add(toggle);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(settingsItem);
         menu.Items.Add(new Separator());
         menu.Items.Add(exit);
         menu.IsOpen = true;
+        e.Handled = true;
+    }
+
+    private void ShowSettingsWindow()
+    {
+        var previousAssetPackID = settings.SelectedAssetPackID;
+        var window = new SettingsWindow(settings, assetPackLoader.CustomPackIDs())
+        {
+            Owner = this
+        };
+
+        if (window.ShowDialog() != true)
+        {
+            return;
+        }
+
+        settings = window.Settings;
+        settingsStore.Save(settings);
+        if (settings.SelectedAssetPackID != previousAssetPackID)
+        {
+            assetPack = assetPackLoader.LoadSelectedPack(settings.SelectedAssetPackID);
+            catWindow = new CatWindowController(
+                this,
+                CatImage,
+                MirrorTransform,
+                new WpfSize(assetPack.SourceWidth, assetPack.SourceHeight));
+        }
+        ApplySettings(reposition: true);
+        ApplyState(stateMachine.State);
     }
 }

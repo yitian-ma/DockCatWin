@@ -1,0 +1,79 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using DockCatWin.Platform;
+using WpfImage = System.Windows.Controls.Image;
+using WpfPoint = System.Windows.Point;
+using WpfSize = System.Windows.Size;
+
+namespace DockCatWin.UI.CatWindow;
+
+public sealed class CatWindowController
+{
+    private readonly Window window;
+    private readonly WpfImage image;
+    private readonly ScaleTransform mirrorTransform;
+    private readonly WpfSize sourceSize;
+    private double scale = 0.1;
+
+    public CatWindowController(Window window, WpfImage image, ScaleTransform mirrorTransform, WpfSize sourceSize)
+    {
+        this.window = window;
+        this.image = image;
+        this.mirrorTransform = mirrorTransform;
+        this.sourceSize = sourceSize;
+        ApplySize();
+    }
+
+    public WpfSize CatSize => new(image.Width, image.Height);
+
+    public void SetImage(BitmapImage? bitmap)
+    {
+        image.Source = bitmap;
+    }
+
+    public void SetImageScale(double percent)
+    {
+        scale = Math.Clamp(percent, 4, 30) / 100;
+        ApplySize();
+    }
+
+    public void SetMirrored(bool mirrored)
+    {
+        mirrorTransform.ScaleX = mirrored ? -1 : 1;
+    }
+
+    public void SetAnchor(WpfPoint anchor, TaskbarEdge edge)
+    {
+        if (edge is TaskbarEdge.Left or TaskbarEdge.Right)
+        {
+            window.Left = anchor.X - CatSize.Width;
+            window.Top = anchor.Y - CatSize.Height;
+            return;
+        }
+
+        window.Left = anchor.X;
+        window.Top = anchor.Y - CatSize.Height;
+    }
+
+    public WpfPoint CurrentAnchor(TaskbarEdge edge)
+    {
+        if (edge is TaskbarEdge.Left or TaskbarEdge.Right)
+        {
+            return new WpfPoint(window.Left + CatSize.Width, window.Top + CatSize.Height);
+        }
+
+        return new WpfPoint(window.Left, window.Top + CatSize.Height);
+    }
+
+    private void ApplySize()
+    {
+        var width = Math.Max(48, sourceSize.Width * scale);
+        var height = Math.Max(48, sourceSize.Height * scale);
+        image.Width = width;
+        image.Height = height;
+        window.Width = width;
+        window.Height = height;
+    }
+}
