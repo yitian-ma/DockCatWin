@@ -118,4 +118,6 @@ artifacts\DockCatWin
 ```
 
 输出文件是完全便携且自包含的。你可以直接打包 `artifacts\DockCatWin` 文件夹并分享；用户不需要安装 .NET 运行时。
+
+请把发行版解压到桌面、下载、文档等当前用户可写的位置。DockCatWin 会在程序同目录创建 `UserData` 保存设置、素材包和存档；如果放在 `Program Files` 等无写权限目录，设置保存可能失败。
 </details>
