@@ -1,15 +1,14 @@
 # Task
 
-- Task description: Commit and publish the current custom-cat work, including bundling the user's `my-cat` asset pack inside the project so other users can run the app with the same cat resources.
+- Task description: Validate the processed custom cat assets, sync valid resources into the bundled and local `my-cat` asset pack, then build, commit, and push to GitHub.
 - Mode: Feature
 - Target files:
-  - `DockCatWin/Core/Assets/AssetPackLoader.cs`
   - `DockCatWin/Resources/MyCat/**`
-  - `README.md`
+  - `%APPDATA%/DockCatWin/AssetPacks/my-cat/**`
+  - `review/task.md`
   - `review/codex_summary.md`
 - Constraints:
-  - Preserve existing AppData asset pack loading behavior.
-  - Do not remove or overwrite user-local AppData resources during normal startup.
-  - Bundled resource pack should be copied to `%APPDATA%\DockCatWin\AssetPacks\my-cat` only when absent, so users can customize it later.
+  - Verify PNG transparency and dimensions before copying.
+  - Preserve required asset pack structure and manifest.
+  - Do not commit user desktop source files, only project resources.
   - Build verification should pass before commit.
-  - Stage, commit, and push to GitHub after verification.
