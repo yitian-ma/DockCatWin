@@ -27,7 +27,7 @@ Custom asset packs live under:
 UserData\AssetPacks
 ```
 
-DockCatWin ships with a bundled `my-cat` asset pack under `DockCatWin\Resources\MyCat`. On startup, it is copied to `UserData\AssetPacks\my-cat` when that folder does not already exist, so users can edit their local copy without future runs overwriting it.
+DockCatWin ships with a bundled `my-cat` asset pack under `DockCatWin\Resources\MyCat`. On startup, it is copied to `UserData\AssetPacks\my-cat` when that folder does not already exist, so users can edit their local copy without future runs overwriting it. *(Note: The resources currently in `my-cat` were created based on my own cat, Huihui (灰灰) — a Tabby and White American Shorthair boy! 🐾)*
 
 Settings, usage statistics, and backups live under:
 
