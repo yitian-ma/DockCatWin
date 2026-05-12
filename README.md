@@ -42,22 +42,8 @@ Outing collectable inventory is stored at:
 UserData\collectable-inventory.json
 ```
 
-## Requirements
-
-- Windows 10 or Windows 11
-- .NET 8 SDK
-
-## Run
-
-```powershell
-dotnet run --project .\DockCatWin\DockCatWin.csproj
-```
-
-## Build
-
-```powershell
-dotnet build .\DockCatWin\DockCatWin.csproj
-```
+<details>
+<summary>🎨 <strong>Advanced: Creating Custom Asset Packs</strong></summary>
 
 ## Custom Walk Video
 
@@ -97,6 +83,27 @@ The dragged/held pose can use its own display canvas size. This is useful when `
 ```
 
 When omitted, DockCatWin uses the pack's normal `canvas_width` and `canvas_height` for the held state.
+</details>
+
+<details>
+<summary>💻 <strong>Developer Guide (Building from Source)</strong></summary>
+
+## Requirements
+
+- Windows 10 or Windows 11
+- .NET 8 SDK
+
+## Run
+
+```powershell
+dotnet run --project .\DockCatWin\DockCatWin.csproj
+```
+
+## Build
+
+```powershell
+dotnet build .\DockCatWin\DockCatWin.csproj
+```
 
 ## Publish
 
@@ -111,3 +118,4 @@ artifacts\DockCatWin
 ```
 
 The output is fully portable and self-contained. You can zip the `artifacts\DockCatWin` folder and share it directly; users do not need to install the .NET runtime.
+</details>
