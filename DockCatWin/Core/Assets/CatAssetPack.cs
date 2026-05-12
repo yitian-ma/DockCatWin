@@ -1,4 +1,5 @@
 using System.Windows.Media.Imaging;
+using WpfSize = System.Windows.Size;
 
 namespace DockCatWin.Core.Assets;
 
@@ -36,4 +37,8 @@ public sealed class CatAssetPack
     public double WalkFps => Math.Clamp(Manifest.Animations.Walk.Fps, 1, 24);
     public double SourceWidth => Manifest.CanvasWidth > 0 ? Manifest.CanvasWidth : 1254;
     public double SourceHeight => Manifest.CanvasHeight > 0 ? Manifest.CanvasHeight : 1254;
+    public WpfSize DefaultSourceSize => new(SourceWidth, SourceHeight);
+    public WpfSize HeldSourceSize => Manifest.DisplaySizes.Held is { Width: > 0, Height: > 0 } held
+        ? new WpfSize(held.Width, held.Height)
+        : DefaultSourceSize;
 }

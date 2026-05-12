@@ -14,7 +14,7 @@ public sealed class CatWindowController
     private readonly Window window;
     private readonly WpfImage image;
     private readonly ScaleTransform mirrorTransform;
-    private readonly WpfSize sourceSize;
+    private WpfSize sourceSize;
     private double scale = 0.1;
     private double extraTopWidth;
     private double extraTopHeight;
@@ -38,6 +38,17 @@ public sealed class CatWindowController
     public void SetImageScale(double percent)
     {
         scale = Math.Clamp(percent, 4, 30) / 100;
+        ApplySize();
+    }
+
+    public void SetSourceSize(WpfSize size)
+    {
+        if (size.Width <= 0 || size.Height <= 0 || size == sourceSize)
+        {
+            return;
+        }
+
+        sourceSize = size;
         ApplySize();
     }
 

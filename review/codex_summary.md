@@ -1,67 +1,45 @@
 # Codex Summary
 
-## Changed Files
+## Changed files
 
-- `README.md`
-- `DockCatWin/MainWindow.xaml`
-- `DockCatWin/MainWindow.xaml.cs`
-- `DockCatWin/SettingsWindow.xaml`
-- `DockCatWin/SettingsWindow.xaml.cs`
-- `DockCatWin/Core/Assets/AssetPackLoader.cs`
+- `DockCatWin/DockCatWin.csproj`
+- `DockCatWin/Core/Assets/AssetManifest.cs`
 - `DockCatWin/Core/Assets/CatAssetPack.cs`
-- `DockCatWin/Core/Reminder/ReminderType.cs`
-- `DockCatWin/Core/Reminder/ReminderScheduler.cs`
+- `DockCatWin/Core/Assets/AssetPackLoader.cs`
+- `DockCatWin/Core/Settings/AppSettings.cs`
 - `DockCatWin/UI/CatWindow/CatWindowController.cs`
-- `DockCatWin/UI/Tray/TrayIconController.cs`
+- `DockCatWin/MainWindow.xaml.cs`
+- `DockCatWin/Resources/MyCat/**`
+- `README.md`
 - `review/task.md`
-- `review/codex_summary.md`
 
-## Summary of Edits
+## Summary of edits
 
-- Added outing/focus mode with duration prompt, departure confirmation, walk-out, away state, recall, walk-in, and return bubble.
-- Copied original outing event and collectable resources into the Windows project.
-- Added outing catalog loading, collectable inventory persistence, and reward generation matching the original rarity probability curve.
-- Restored default outing duration in settings.
-- Added outing event and collectable counts to usage statistics and backup data.
-- Added pending/deferred reminder behavior so reminders wait for long-duration cat states.
-- Added status and remaining-time rows to tray and cat context menus.
-- Added Windows suspend/resume handling to resolve active outings after wake.
-- Generated the tray icon from the active cat image instead of using the generic application icon.
-- Added a simple collected-items list in settings.
-- Added a Windows tray icon with menu actions for petting, walking/resting toggle, settings, show/hide, and exit.
-- Added a speech bubble area above the cat with action buttons.
-- Added water and movement reminder scheduling with complete and 5-minute snooze actions.
-- Expanded settings with reminder enablement, asset pack refresh, asset folder open, and asset status text.
-- Added asset pack directory preparation under `%APPDATA%\DockCatWin\AssetPacks`.
-- Added default pack seeding, `my-cat` template generation, manifest error tolerance, and fallback to default cat resources when custom packs are incomplete.
-- Hid outing-specific settings from the UI for now.
-- Clamped dragged cat anchors so the cat cannot end below the bottom taskbar/work-area boundary.
-- Added display selection in settings and reclamping when Windows display settings change.
-- Added usage statistics for companion time and completed reminders.
-- Added local user data backup under `%APPDATA%\DockCatWin\DataBackup`.
-- Added a PowerShell publish script for Windows release builds.
-- Verified the publish script creates `artifacts\DockCatWin`.
-- Updated README with the new Windows behavior and asset pack location.
+- Added OpenCvSharp Windows runtime dependencies for local walking-video extraction.
+- Extended walk animation manifest data with optional `video` and `video_frame_count` fields.
+- Added video-to-walk-frame extraction with green-screen keying, normalized `1100 x 650` cached frames, and frame priority that preserves explicit PNG walk frames first.
+- Added optional `display_sizes.held` manifest support so the dragged/held state can use a custom display canvas size, such as `650 x 1236`, without changing normal walk/rest sizing.
+- Bundled the user's cat asset pack under `DockCatWin/Resources/MyCat`, including dialogue, held, resting, transition placeholders, and walk frames.
+- Updated startup asset preparation to copy bundled `Resources/MyCat` into `%APPDATA%\DockCatWin\AssetPacks\my-cat` only when that local folder does not already exist.
+- Changed fresh default settings to select `my-cat`, so new installs run with the bundled custom cat by default.
+- Updated README with bundled pack, walk-video, and held-size notes.
 
-## Risk Analysis
+## Risk analysis
 
-- Build verification passes with .NET SDK 8.0.420.
-- The reminder feature is timer-based and not yet backed by usage statistics.
-- The tray icon uses the default system application icon until a proper `.ico` asset is added.
-- Asset validation is intentionally lightweight; it reports broad availability rather than per-file diagnostics.
-- Bottom taskbar clamping now keeps the cat's lower edge at the work-area bottom; non-bottom taskbar behavior still needs real desktop layout testing.
-- Release prep creates a framework-dependent win-x64 publish folder, not a full installer yet.
-- Outing left/right taskbar behavior exits to the right side like the original implementation; further polish can make edge-specific exit paths later.
-- Windows implementation now covers the practical original feature set, but pixel-perfect menu/status presentation and platform-specific Dock icon behavior differ by design.
+- Video decoding depends on OpenCvSharp's Windows runtime codec support; normal MP4/H.264 should work, but unusual codecs may fail and fall back to PNG/default frames.
+- The chroma keyer is threshold-based, not semantic matting. Pure, evenly lit chroma green works best; shadows, compression artifacts, green fur spill, and yellow-green details may need manual cleanup or threshold tuning later.
+- Existing PNG frame asset packs should keep their current behavior because image frames still take priority over videos.
+- Bundled `my-cat` is copied only when the local `my-cat` folder is absent, so existing local edits are preserved.
+- `stretch.png` and `yawn.png` are currently stand-pose placeholders to prevent fallback to the default cat until dedicated transition art exists.
 
-## Suggested Verification Steps
+## Verification
 
-1. Run `dotnet build .\DockCatWin\DockCatWin.csproj`.
-2. Run `dotnet run --project .\DockCatWin\DockCatWin.csproj`.
-3. Confirm the tray menu can show/hide, open settings, toggle walking/resting, and exit.
-4. Temporarily lower reminder intervals in settings and confirm reminder bubbles appear with complete/snooze actions.
-5. Open the asset folder from settings and confirm `default-lizz` and `my-cat` are created.
-6. Change the selected display in settings, then confirm the cat repositions and stays clamped to the target work area.
-7. Run `.\scripts\publish-win.ps1` and confirm `artifacts\DockCatWin` is created.
-8. Start an outing with a short duration, confirm the cat walks out, returns, and shows either an event or collectable reward.
-9. Recall during outing and confirm the cat returns with an event-style reward.
+- `dotnet build .\DockCatWin\DockCatWin.csproj` passed with 0 warnings and 0 errors.
+- The local `%APPDATA%\DockCatWin\AssetPacks\my-cat` pack validated as usable with walk=4, resting=2, held=1, dialogue=1, transition=2, and heldSource=650x1236.
+
+## Suggested verification steps
+
+1. Start DockCatWin and confirm it uses `my-cat` from settings.
+2. Drag the cat and confirm the large held image appears with the custom held size.
+3. Watch walking/resting/transition states and confirm no default cat appears.
+4. Later replace `poses\transition\stretch.png` and `poses\transition\yawn.png` with true custom transition artwork.

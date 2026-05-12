@@ -16,7 +16,6 @@ using DockCatWin.Core.Statistics;
 using DockCatWin.Platform;
 using DockCatWin.UI.CatWindow;
 using DockCatWin.UI.Tray;
-using WpfSize = System.Windows.Size;
 
 namespace DockCatWin;
 
@@ -110,7 +109,7 @@ public partial class MainWindow : Window
             this,
             CatImage,
             MirrorTransform,
-            new WpfSize(assetPack.SourceWidth, assetPack.SourceHeight));
+            assetPack.DefaultSourceSize);
 
         ApplySettings(reposition: true);
         SystemEvents.DisplaySettingsChanged += SystemEvents_DisplaySettingsChanged;
@@ -183,6 +182,7 @@ public partial class MainWindow : Window
         animationTimer.Stop();
         activeFrames = [];
         frameIndex = 0;
+        ApplyStateSourceSize(state.Kind);
 
         switch (state.Kind)
         {
@@ -338,6 +338,20 @@ public partial class MainWindow : Window
         catWindow.SetImage(assetPack.WalkFrames.FirstOrDefault());
     }
 
+    private void ApplyStateSourceSize(CatStateKind stateKind)
+    {
+        if (catWindow is null)
+        {
+            return;
+        }
+
+        var anchor = catWindow.CurrentAnchor(activityArea.Edge);
+        catWindow.SetSourceSize(stateKind == CatStateKind.Dragged
+            ? assetPack.HeldSourceSize
+            : assetPack.DefaultSourceSize);
+        catWindow.SetAnchor(anchor, activityArea.Edge);
+    }
+
     private void CatImage_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 2)
@@ -442,7 +456,7 @@ public partial class MainWindow : Window
                 this,
                 CatImage,
                 MirrorTransform,
-                new WpfSize(assetPack.SourceWidth, assetPack.SourceHeight));
+                assetPack.DefaultSourceSize);
         }
         ApplySettings(reposition: true);
         ApplyState(stateMachine.State);

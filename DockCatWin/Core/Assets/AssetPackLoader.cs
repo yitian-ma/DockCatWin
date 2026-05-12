@@ -1,6 +1,8 @@
 using System.IO;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows.Media.Imaging;
+using OpenCvSharp;
 
 namespace DockCatWin.Core.Assets;
 
@@ -64,6 +66,7 @@ public sealed class AssetPackLoader
         var root = CustomPacksRoot();
         Directory.CreateDirectory(root);
         CopyDefaultPackIfNeeded(root);
+        CopyBundledPackIfNeeded("MyCat", "my-cat", root);
         CreateTemplatePackIfNeeded(root);
     }
 
@@ -167,6 +170,18 @@ public sealed class AssetPackLoader
         CopyDirectory(source, destination);
     }
 
+    private static void CopyBundledPackIfNeeded(string resourceFolderName, string destinationFolderName, string customRoot)
+    {
+        var source = Path.Combine(AppContext.BaseDirectory, "Resources", resourceFolderName);
+        var destination = Path.Combine(customRoot, destinationFolderName);
+        if (!Directory.Exists(source) || Directory.Exists(destination))
+        {
+            return;
+        }
+
+        CopyDirectory(source, destination);
+    }
+
     private static void CreateTemplatePackIfNeeded(string customRoot)
     {
         var root = Path.Combine(customRoot, "my-cat");
@@ -194,8 +209,16 @@ public sealed class AssetPackLoader
             "dialogue": "poses/dialogue",
             "transition": "poses/transition"
           },
+          "display_sizes": {
+            "held": { "width": 650, "height": 1236 }
+          },
           "animations": {
-            "walk": { "fps": 3, "frames": [] }
+            "walk": {
+              "fps": 3,
+              "video": "animations/walk/walk.mp4",
+              "video_frame_count": 4,
+              "frames": []
+            }
           }
         }
         """);
@@ -242,7 +265,26 @@ public sealed class AssetPackLoader
                 .ToList();
         }
 
-        return LoadImages(Path.Combine(root, "animations", "walk"));
+        var directoryFrames = LoadImages(Path.Combine(root, "animations", "walk"));
+        if (directoryFrames.Count > 0)
+        {
+            return directoryFrames;
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest.Animations.Walk.Video))
+        {
+            var videoPath = Path.Combine(root, NormalizePath(manifest.Animations.Walk.Video));
+            if (File.Exists(videoPath))
+            {
+                var extracted = ExtractWalkVideoFrames(root, manifest, videoPath);
+                if (extracted.Count > 0)
+                {
+                    return extracted;
+                }
+            }
+        }
+
+        return [];
     }
 
     private static IReadOnlyList<BitmapImage> LoadImages(string directory)
@@ -267,6 +309,211 @@ public sealed class AssetPackLoader
         image.EndInit();
         image.Freeze();
         return image;
+    }
+
+    private static IReadOnlyList<BitmapImage> ExtractWalkVideoFrames(string root, AssetManifest manifest, string videoPath)
+    {
+        var frameCount = Math.Clamp(manifest.Animations.Walk.VideoFrameCount, 2, 24);
+        var cacheDirectory = VideoCacheDirectory(root, manifest, videoPath, frameCount);
+        Directory.CreateDirectory(cacheDirectory);
+
+        var cachedFrames = Directory.EnumerateFiles(cacheDirectory, "walk_*.png")
+            .OrderBy(Path.GetFileName)
+            .ToList();
+        if (cachedFrames.Count == frameCount)
+        {
+            return cachedFrames.Select(LoadImage).ToList();
+        }
+
+        foreach (var staleFrame in cachedFrames)
+        {
+            File.Delete(staleFrame);
+        }
+
+        using var capture = new VideoCapture(videoPath);
+        if (!capture.IsOpened())
+        {
+            return [];
+        }
+
+        var totalFrames = (int)Math.Round(capture.Get(VideoCaptureProperties.FrameCount));
+        if (totalFrames <= 0)
+        {
+            return [];
+        }
+
+        var outputFrames = new List<string>();
+        for (var i = 0; i < frameCount; i++)
+        {
+            var position = FramePosition(totalFrames, frameCount, i);
+            capture.Set(VideoCaptureProperties.PosFrames, position);
+
+            using var frame = new Mat();
+            if (!capture.Read(frame) || frame.Empty())
+            {
+                continue;
+            }
+
+            using var keyed = NormalizeWalkFrame(ApplyGreenScreenKey(frame));
+            var outputPath = Path.Combine(cacheDirectory, $"walk_{i + 1:00}.png");
+            Cv2.ImWrite(outputPath, keyed);
+            outputFrames.Add(outputPath);
+        }
+
+        return outputFrames.Select(LoadImage).ToList();
+    }
+
+    private static int FramePosition(int totalFrames, int frameCount, int index)
+    {
+        if (frameCount == 1)
+        {
+            return totalFrames / 2;
+        }
+
+        var start = totalFrames * 0.12;
+        var end = totalFrames * 0.88;
+        var step = (end - start) / (frameCount - 1);
+        return Math.Clamp((int)Math.Round(start + (step * index)), 0, totalFrames - 1);
+    }
+
+    private static string VideoCacheDirectory(string root, AssetManifest manifest, string videoPath, int frameCount)
+    {
+        var info = new FileInfo(videoPath);
+        var identity = $"v2-normalized|{root}|{manifest.Id}|{videoPath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{frameCount}|{manifest.CanvasWidth}|{manifest.CanvasHeight}";
+        var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)))[..16];
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "DockCatWin",
+            "VideoCache",
+            SanitizePathSegment(manifest.Id),
+            hash);
+    }
+
+    private static string SanitizePathSegment(string value)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var chars = value.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray();
+        var sanitized = new string(chars).Trim();
+        return string.IsNullOrWhiteSpace(sanitized) ? "asset-pack" : sanitized;
+    }
+
+    private static unsafe Mat ApplyGreenScreenKey(Mat source)
+    {
+        using var bgr = source.Channels() == 3 ? source.Clone() : source.CvtColor(ColorConversionCodes.BGRA2BGR);
+        using var hsv = new Mat();
+        Cv2.CvtColor(bgr, hsv, ColorConversionCodes.BGR2HSV);
+        var output = new Mat();
+        Cv2.CvtColor(bgr, output, ColorConversionCodes.BGR2BGRA);
+
+        for (var y = 0; y < bgr.Rows; y++)
+        {
+            var bgrRow = (byte*)bgr.Ptr(y);
+            var hsvRow = (byte*)hsv.Ptr(y);
+            var outRow = (byte*)output.Ptr(y);
+
+            for (var x = 0; x < bgr.Cols; x++)
+            {
+                var pixel = x * 3;
+                var outPixel = x * 4;
+                var blue = bgrRow[pixel];
+                var green = bgrRow[pixel + 1];
+                var red = bgrRow[pixel + 2];
+                var hue = hsvRow[pixel];
+                var saturation = hsvRow[pixel + 1];
+                var value = hsvRow[pixel + 2];
+
+                var greenDominance = green - Math.Max(red, blue);
+                var greenHueDistance = Math.Abs(hue - 60);
+                var isGreenHue = greenHueDistance <= 28;
+                var isKeyCandidate = isGreenHue
+                    && saturation >= 55
+                    && value >= 70
+                    && greenDominance >= 18
+                    && green >= 95;
+
+                if (!isKeyCandidate)
+                {
+                    continue;
+                }
+
+                var dominanceAlpha = 1.0 - Clamp01((greenDominance - 18) / 52.0);
+                var hueAlpha = Clamp01((greenHueDistance - 8) / 20.0);
+                var alpha = (byte)Math.Round(255 * Math.Max(dominanceAlpha, hueAlpha));
+
+                outRow[outPixel + 1] = Math.Min(green, Math.Max(red, blue));
+                outRow[outPixel + 3] = alpha;
+            }
+        }
+
+        return output;
+    }
+
+    private static Mat NormalizeWalkFrame(Mat keyedFrame)
+    {
+        var bounds = AlphaBounds(keyedFrame);
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return keyedFrame.Clone();
+        }
+
+        var targetWidth = 1100;
+        var targetHeight = 650;
+        using var cropped = new Mat(keyedFrame, bounds);
+        var horizontalPadding = 34;
+        var topPadding = 18;
+        var bottomPadding = 8;
+        var availableWidth = targetWidth - (horizontalPadding * 2);
+        var availableHeight = targetHeight - topPadding - bottomPadding;
+        var scale = Math.Min(
+            availableWidth / (double)bounds.Width,
+            availableHeight / (double)bounds.Height);
+        var drawWidth = Math.Max(1, (int)Math.Round(bounds.Width * scale));
+        var drawHeight = Math.Max(1, (int)Math.Round(bounds.Height * scale));
+        var offsetX = Math.Max(0, (targetWidth - drawWidth) / 2);
+        var offsetY = Math.Max(topPadding, targetHeight - bottomPadding - drawHeight);
+
+        using var resized = new Mat();
+        Cv2.Resize(cropped, resized, new OpenCvSharp.Size(drawWidth, drawHeight), 0, 0, InterpolationFlags.Lanczos4);
+
+        var normalized = new Mat(targetHeight, targetWidth, MatType.CV_8UC4, Scalar.All(0));
+        var destination = new Rect(offsetX, offsetY, drawWidth, drawHeight);
+        resized.CopyTo(new Mat(normalized, destination));
+        return normalized;
+    }
+
+    private static unsafe Rect AlphaBounds(Mat image)
+    {
+        var minX = image.Cols;
+        var minY = image.Rows;
+        var maxX = -1;
+        var maxY = -1;
+
+        for (var y = 0; y < image.Rows; y++)
+        {
+            var row = (byte*)image.Ptr(y);
+            for (var x = 0; x < image.Cols; x++)
+            {
+                var alpha = row[(x * 4) + 3];
+                if (alpha <= 8)
+                {
+                    continue;
+                }
+
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+            }
+        }
+
+        return maxX < minX || maxY < minY
+            ? new Rect(0, 0, 0, 0)
+            : new Rect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    }
+
+    private static double Clamp01(double value)
+    {
+        return Math.Max(0, Math.Min(1, value));
     }
 
     private static string NormalizePath(string path)

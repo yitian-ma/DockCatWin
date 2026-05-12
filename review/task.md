@@ -1,30 +1,15 @@
 # Task
 
-- Task description: Finish remaining parity work for DockCatWin: outing polish, reminder defer, status menus, power wake handling, tray icon, and collection display.
+- Task description: Commit and publish the current custom-cat work, including bundling the user's `my-cat` asset pack inside the project so other users can run the app with the same cat resources.
 - Mode: Feature
 - Target files:
-  - `DockCatWin/DockCatWin.csproj`
-  - `DockCatWin/App.xaml.cs`
-  - `DockCatWin/MainWindow.xaml`
-  - `DockCatWin/MainWindow.xaml.cs`
-  - `DockCatWin/SettingsWindow.xaml`
-  - `DockCatWin/SettingsWindow.xaml.cs`
-  - `DockCatWin/Core/Assets/*`
-  - `DockCatWin/Core/Reminder/*`
-  - `DockCatWin/Core/Outing/*`
-  - `DockCatWin/Core/Statistics/*`
-  - `DockCatWin/Core/Backup/*`
-  - `DockCatWin/UI/Tray/*`
-  - `DockCatWin/Platform/TaskbarGeometry.cs`
-  - `DockCatWin/UI/Bubble/*`
-  - `DockCatWin/UI/Tray/*`
-  - `DockCatWin/Resources/Outing/**`
+  - `DockCatWin/Core/Assets/AssetPackLoader.cs`
+  - `DockCatWin/Resources/MyCat/**`
   - `README.md`
-  - `scripts/*`
+  - `review/codex_summary.md`
 - Constraints:
-  - Keep the existing macOS repository untouched.
-  - Use .NET 8 WPF for the first Windows implementation.
-  - Copy and reuse the existing default cat image resources.
-  - Preserve the current WPF structure and keep this pass focused on daily-use Windows behavior.
-  - Match the original outing flow and close remaining practical parity gaps where feasible.
-  - Build verification should pass with .NET 8 SDK.
+  - Preserve existing AppData asset pack loading behavior.
+  - Do not remove or overwrite user-local AppData resources during normal startup.
+  - Bundled resource pack should be copied to `%APPDATA%\DockCatWin\AssetPacks\my-cat` only when absent, so users can customize it later.
+  - Build verification should pass before commit.
+  - Stage, commit, and push to GitHub after verification.
