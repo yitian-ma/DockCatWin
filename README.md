@@ -1,5 +1,9 @@
 # DockCatWin
 
+## Acknowledgements
+
+This project is a native Windows port of the amazing macOS desktop pet app **DockCat**. All original concepts, logic design, and default cat UI assets belong to the original author. Huge thanks for their fantastic work!
+
 DockCatWin is a first Windows port of DockCat. This repository starts with a minimal WPF desktop pet:
 
 - transparent topmost window
@@ -20,22 +24,22 @@ DockCatWin is a first Windows port of DockCat. This repository starts with a min
 Custom asset packs live under:
 
 ```text
-%APPDATA%\DockCatWin\AssetPacks
+UserData\AssetPacks
 ```
 
-DockCatWin ships with a bundled `my-cat` asset pack under `DockCatWin\Resources\MyCat`. On startup, it is copied to `%APPDATA%\DockCatWin\AssetPacks\my-cat` when that folder does not already exist, so users can edit their local copy without future runs overwriting it.
+DockCatWin ships with a bundled `my-cat` asset pack under `DockCatWin\Resources\MyCat`. On startup, it is copied to `UserData\AssetPacks\my-cat` when that folder does not already exist, so users can edit their local copy without future runs overwriting it.
 
 Settings, usage statistics, and backups live under:
 
 ```text
-%APPDATA%\DockCatWin
-%APPDATA%\DockCatWin\DataBackup\user-data-backup.json
+UserData
+UserData\DataBackup\user-data-backup.json
 ```
 
 Outing collectable inventory is stored at:
 
 ```text
-%APPDATA%\DockCatWin\collectable-inventory.json
+UserData\collectable-inventory.json
 ```
 
 ## Requirements
@@ -78,7 +82,7 @@ Or they can provide a green-screen walking video and let DockCatWin extract tran
 }
 ```
 
-PNG frames take priority. If no walking PNG frames are found, DockCatWin reads `video`, extracts `video_frame_count` evenly spaced frames, removes a pure green-screen background, normalizes the cat into centered bottom-aligned `1100 x 650` transparent frames, and caches the generated PNG files under `%APPDATA%\DockCatWin\VideoCache`.
+PNG frames take priority. If no walking PNG frames are found, DockCatWin reads `video`, extracts `video_frame_count` evenly spaced frames, removes a pure green-screen background, normalizes the cat into centered bottom-aligned `1100 x 650` transparent frames, and caches the generated PNG files under `UserData\VideoCache`.
 
 The green-screen keyer is a first-pass chroma key: solid, evenly lit chroma green works best. It makes strong green fully transparent, softens near-green edges, and reduces green spill on semi-transparent edges. Busy backgrounds, heavy shadows, green reflection on fur, or green/yellow details close to the background color may still need manual cleanup.
 
@@ -105,3 +109,5 @@ The publish output is written to:
 ```text
 artifacts\DockCatWin
 ```
+
+The output is fully portable and self-contained. You can zip the `artifacts\DockCatWin` folder and share it directly; users do not need to install the .NET runtime.
