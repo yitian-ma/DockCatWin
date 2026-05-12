@@ -2,7 +2,7 @@
 
 ## Acknowledgements
 
-This project is a native Windows port of the amazing macOS desktop pet app **DockCat**. All original concepts, logic design, and default cat UI assets belong to the original author. Huge thanks for their fantastic work!
+This project is a native Windows port of the amazing macOS desktop pet app [DockCat](https://github.com/Auwuua/DockCat). All original concepts, logic design, and default cat UI assets belong to the original author. Huge thanks for their fantastic work!
 
 DockCatWin is a first Windows port of DockCat. This repository starts with a minimal WPF desktop pet:
 
