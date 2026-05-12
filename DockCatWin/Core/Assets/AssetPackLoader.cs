@@ -56,8 +56,8 @@ public sealed class AssetPackLoader
     public string CustomPacksRoot()
     {
         return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "DockCatWin",
+            AppContext.BaseDirectory,
+            "UserData",
             "AssetPacks");
     }
 
@@ -382,8 +382,8 @@ public sealed class AssetPackLoader
         var identity = $"v2-normalized|{root}|{manifest.Id}|{videoPath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{frameCount}|{manifest.CanvasWidth}|{manifest.CanvasHeight}";
         var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)))[..16];
         return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "DockCatWin",
+            AppContext.BaseDirectory,
+            "UserData",
             "VideoCache",
             SanitizePathSegment(manifest.Id),
             hash);

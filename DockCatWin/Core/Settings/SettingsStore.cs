@@ -16,8 +16,8 @@ public sealed class SettingsStore
     public SettingsStore()
     {
         var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "DockCatWin");
+            AppContext.BaseDirectory,
+            "UserData");
         settingsPath = Path.Combine(root, "settings.json");
     }
 

@@ -16,8 +16,8 @@ public sealed class CollectableInventoryStore
     public CollectableInventoryStore()
     {
         var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "DockCatWin");
+            AppContext.BaseDirectory,
+            "UserData");
         inventoryPath = Path.Combine(root, "collectable-inventory.json");
     }
 

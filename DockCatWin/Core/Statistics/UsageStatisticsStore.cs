@@ -16,8 +16,8 @@ public sealed class UsageStatisticsStore
     public UsageStatisticsStore()
     {
         var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "DockCatWin");
+            AppContext.BaseDirectory,
+            "UserData");
         statisticsPath = Path.Combine(root, "usage-statistics.json");
     }
 

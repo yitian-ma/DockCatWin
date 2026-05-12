@@ -18,8 +18,8 @@ public sealed class UserDataBackupStore
     public UserDataBackupStore()
     {
         var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "DockCatWin",
+            AppContext.BaseDirectory,
+            "UserData",
             "DataBackup");
         backupFilePath = Path.Combine(root, "user-data-backup.json");
     }

@@ -2,32 +2,35 @@
 
 ## Changed files
 
-- `DockCatWin/Resources/MyCat/poses/transition/stretch.png`
-- `DockCatWin/Resources/MyCat/poses/transition/yawn.png`
+- `DockCatWin/Resources/MyCat/animations/walk/walk_01.png`
+- `DockCatWin/Resources/MyCat/animations/walk/walk_02.png`
 - `review/task.md`
 - `review/codex_summary.md`
 
 ## Summary of edits
 
-- Validated all PNG assets in `C:\Users\17569\Desktop\去背景\processed` for expected dimensions and transparent corners.
-- Normalized the new `stretch.png` and `yawn.png` into the project target sizes:
-  - `stretch.png`: `1145 x 952`
-  - `yawn.png`: `1133 x 824`
-- Synced the validated assets into both the bundled project pack at `DockCatWin/Resources/MyCat` and the local runtime pack at `%APPDATA%\DockCatWin\AssetPacks\my-cat`.
-- Replaced the previous transition placeholder images with real stretch/yawn assets.
+- Rescaled `walk_01.png` and `walk_02.png` in `C:\Users\17569\Desktop\去背景\processed` so their cat subject height matches the later walk frames more closely.
+- Preserved transparent `1100 x 650` PNG canvases and kept the feet bottom-aligned around y=604.
+- Synced the corrected first two walk frames into both the bundled project pack at `DockCatWin/Resources/MyCat` and the local runtime pack at `%APPDATA%\DockCatWin\AssetPacks\my-cat`.
+
+## Before / after subject bounds
+
+- `walk_01.png`: `847 x 426` -> `974 x 490`
+- `walk_02.png`: `880 x 452` -> `954 x 490`
+- `walk_03.png`: unchanged `940 x 473`
+- `walk_04.png`: unchanged `974 x 504`
 
 ## Risk analysis
 
-- The PNGs have transparent corners and expected dimensions, but final visual quality still depends on manual in-app inspection at runtime scale.
-- Desktop source files include backup copies for the original large transition exports, but those are not part of the repository.
+- The first two frames are upscaled from existing PNGs, so they may be slightly softer than the original scale. The visual consistency gain should be more important for the walk loop.
+- Final judgment should be made in motion inside DockCatWin, not only from still-frame previews.
 
 ## Verification
 
-- Asset dimension and transparent-corner check passed for `stand`, `held`, `loaf`, `bread`, `stretch`, `yawn`, and `walk_01` through `walk_04`.
-- `dotnet build .\DockCatWin\DockCatWin.csproj` should be run before commit.
+- Rechecked all four walk frames for `1100 x 650` size and transparent corners.
+- Generated preview at `C:\Users\17569\Desktop\去背景\processed\walk_scaled_preview.png`.
 
 ## Suggested verification steps
 
-1. Start DockCatWin and confirm transition states show the custom stretch/yawn images instead of the previous stand placeholders.
-2. Drag the cat and confirm the held image uses the larger held display size.
-3. Watch walking/resting states and confirm all states use the bundled custom cat.
+1. Run DockCatWin and watch the walking animation loop.
+2. Confirm `walk_01` and `walk_02` no longer appear smaller than `walk_03` and `walk_04`.

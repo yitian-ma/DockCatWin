@@ -11,8 +11,8 @@ $publishDir = Join-Path $repoRoot $Output
 dotnet publish $project `
     -c $Configuration `
     -r win-x64 `
-    --self-contained false `
-    -p:PublishSingleFile=false `
+    --self-contained true `
+    -p:PublishSingleFile=true `
     -o $publishDir
 
 Write-Host "Published DockCatWin to $publishDir"
