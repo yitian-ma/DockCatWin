@@ -10,6 +10,8 @@ namespace DockCatWin.Core.Assets;
 
 public sealed class AssetPackLoader
 {
+    private const string DefaultPackID = "default-lizz";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -26,7 +28,7 @@ public sealed class AssetPackLoader
     {
         PrepareCustomPacksDirectory();
         var fallback = LoadDefaultPackWithoutPreparing();
-        if (!string.IsNullOrWhiteSpace(selectedID) && selectedID != "default-lizz")
+        if (!string.IsNullOrWhiteSpace(selectedID) && selectedID != DefaultPackID)
         {
             var customRoot = Path.Combine(CustomPacksRoot(), selectedID);
             if (Directory.Exists(customRoot))
@@ -67,7 +69,7 @@ public sealed class AssetPackLoader
     {
         var root = CustomPacksRoot();
         Directory.CreateDirectory(root);
-        CopyDefaultPackIfNeeded(root);
+        SyncDefaultPackReference(root);
         CopyBundledPackIfNeeded("HuihuiCat", "huihui-cat", root);
         CreateTemplatePackIfNeeded(root);
     }
@@ -160,13 +162,18 @@ public sealed class AssetPackLoader
             pack.LoadError);
     }
 
-    private static void CopyDefaultPackIfNeeded(string customRoot)
+    private static void SyncDefaultPackReference(string customRoot)
     {
         var source = Path.Combine(AppContext.BaseDirectory, "Resources", "DefaultCat");
-        var destination = Path.Combine(customRoot, "default-lizz");
-        if (!Directory.Exists(source) || Directory.Exists(destination))
+        var destination = Path.Combine(customRoot, DefaultPackID);
+        if (!Directory.Exists(source))
         {
             return;
+        }
+
+        if (Directory.Exists(destination))
+        {
+            Directory.Delete(destination, recursive: true);
         }
 
         CopyDirectory(source, destination);
