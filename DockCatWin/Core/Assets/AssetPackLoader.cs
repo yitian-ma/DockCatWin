@@ -1,8 +1,10 @@
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using OpenCvSharp;
 
 namespace DockCatWin.Core.Assets;
 
@@ -66,7 +68,7 @@ public sealed class AssetPackLoader
         var root = CustomPacksRoot();
         Directory.CreateDirectory(root);
         CopyDefaultPackIfNeeded(root);
-        CopyBundledPackIfNeeded("MyCat", "my-cat", root);
+        CopyBundledPackIfNeeded("HuihuiCat", "huihui-cat", root);
         CreateTemplatePackIfNeeded(root);
     }
 
@@ -238,22 +240,6 @@ public sealed class AssetPackLoader
         }
     }
 
-    private static CatAssetPack LoadPack(string root)
-    {
-        var manifestPath = Path.Combine(root, "manifest.json");
-        var manifest = File.Exists(manifestPath)
-            ? JsonSerializer.Deserialize<AssetManifest>(File.ReadAllText(manifestPath), JsonOptions) ?? new AssetManifest()
-            : new AssetManifest();
-
-        var walkFrames = LoadWalkFrames(root, manifest);
-        var resting = LoadImages(Path.Combine(root, NormalizePath(manifest.Poses.Resting)));
-        var transition = LoadImages(Path.Combine(root, NormalizePath(manifest.Poses.Transition)));
-        var held = LoadImages(Path.Combine(root, NormalizePath(manifest.Poses.Held)));
-        var dialogue = LoadImages(Path.Combine(root, NormalizePath(manifest.Poses.Dialogue)));
-
-        return new CatAssetPack(manifest, walkFrames, resting, transition, held, dialogue, root);
-    }
-
     private static IReadOnlyList<BitmapImage> LoadWalkFrames(string root, AssetManifest manifest)
     {
         if (manifest.Animations.Walk.Frames.Length > 0)
@@ -330,56 +316,157 @@ public sealed class AssetPackLoader
             File.Delete(staleFrame);
         }
 
-        using var capture = new VideoCapture(videoPath);
-        if (!capture.IsOpened())
-        {
-            return [];
-        }
-
-        var totalFrames = (int)Math.Round(capture.Get(VideoCaptureProperties.FrameCount));
-        if (totalFrames <= 0)
+        using var tempDirectory = TemporaryDirectory.Create();
+        var sourceFrames = ExtractVideoFramesWithFfmpeg(videoPath, tempDirectory.Path, frameCount);
+        if (sourceFrames.Count == 0)
         {
             return [];
         }
 
         var outputFrames = new List<string>();
-        for (var i = 0; i < frameCount; i++)
+        for (var i = 0; i < sourceFrames.Count; i++)
         {
-            var position = FramePosition(totalFrames, frameCount, i);
-            capture.Set(VideoCaptureProperties.PosFrames, position);
-
-            using var frame = new Mat();
-            if (!capture.Read(frame) || frame.Empty())
-            {
-                continue;
-            }
-
-            using var keyed = NormalizeWalkFrame(ApplyGreenScreenKey(frame));
+            var keyed = NormalizeWalkFrame(ApplyGreenScreenKey(sourceFrames[i]));
             var outputPath = Path.Combine(cacheDirectory, $"walk_{i + 1:00}.png");
-            Cv2.ImWrite(outputPath, keyed);
+            SavePng(keyed, outputPath);
             outputFrames.Add(outputPath);
         }
 
         return outputFrames.Select(LoadImage).ToList();
     }
 
-    private static int FramePosition(int totalFrames, int frameCount, int index)
+    private static IReadOnlyList<string> ExtractVideoFramesWithFfmpeg(string videoPath, string outputDirectory, int frameCount)
+    {
+        var duration = ProbeVideoDurationSeconds(videoPath);
+        if (duration is null or <= 0)
+        {
+            return [];
+        }
+
+        var frames = new List<string>();
+        for (var i = 0; i < frameCount; i++)
+        {
+            var timestamp = FrameTimestamp(duration.Value, frameCount, i);
+            var outputPath = Path.Combine(outputDirectory, $"source_{i + 1:00}.png");
+            var exitCode = RunProcess(
+                "ffmpeg",
+                [
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-ss",
+                    timestamp.ToString("0.###", CultureInfo.InvariantCulture),
+                    "-i",
+                    videoPath,
+                    "-frames:v",
+                    "1",
+                    outputPath
+                ]);
+
+            if (exitCode == 0 && File.Exists(outputPath))
+            {
+                frames.Add(outputPath);
+            }
+        }
+
+        return frames;
+    }
+
+    private static double? ProbeVideoDurationSeconds(string videoPath)
+    {
+        var output = RunProcessWithOutput(
+            "ffprobe",
+            [
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                videoPath
+            ]);
+
+        return double.TryParse(output, NumberStyles.Float, CultureInfo.InvariantCulture, out var duration)
+            ? duration
+            : null;
+    }
+
+    private static double FrameTimestamp(double duration, int frameCount, int index)
     {
         if (frameCount == 1)
         {
-            return totalFrames / 2;
+            return duration / 2;
         }
 
-        var start = totalFrames * 0.12;
-        var end = totalFrames * 0.88;
+        var start = duration * 0.12;
+        var end = duration * 0.88;
         var step = (end - start) / (frameCount - 1);
-        return Math.Clamp((int)Math.Round(start + (step * index)), 0, totalFrames - 1);
+        return Math.Clamp(start + (step * index), 0, Math.Max(0, duration - 0.001));
+    }
+
+    private static int RunProcess(string fileName, IReadOnlyList<string> arguments)
+    {
+        try
+        {
+            using var process = Process.Start(ProcessStartInfo(fileName, arguments, redirectOutput: false));
+            if (process is null)
+            {
+                return -1;
+            }
+
+            process.WaitForExit();
+            return process.ExitCode;
+        }
+        catch
+        {
+            return -1;
+        }
+    }
+
+    private static string? RunProcessWithOutput(string fileName, IReadOnlyList<string> arguments)
+    {
+        try
+        {
+            using var process = Process.Start(ProcessStartInfo(fileName, arguments, redirectOutput: true));
+            if (process is null)
+            {
+                return null;
+            }
+
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            return process.ExitCode == 0 ? output.Trim() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static ProcessStartInfo ProcessStartInfo(string fileName, IReadOnlyList<string> arguments, bool redirectOutput)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = redirectOutput,
+            RedirectStandardError = true
+        };
+
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        return startInfo;
     }
 
     private static string VideoCacheDirectory(string root, AssetManifest manifest, string videoPath, int frameCount)
     {
         var info = new FileInfo(videoPath);
-        var identity = $"v2-normalized|{root}|{manifest.Id}|{videoPath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{frameCount}|{manifest.CanvasWidth}|{manifest.CanvasHeight}";
+        var identity = $"v3-ffmpeg-normalized|{root}|{manifest.Id}|{videoPath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{frameCount}|{manifest.CanvasWidth}|{manifest.CanvasHeight}";
         var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)))[..16];
         return Path.Combine(
             AppContext.BaseDirectory,
@@ -397,37 +484,28 @@ public sealed class AssetPackLoader
         return string.IsNullOrWhiteSpace(sanitized) ? "asset-pack" : sanitized;
     }
 
-    private static unsafe Mat ApplyGreenScreenKey(Mat source)
+    private static BitmapSource ApplyGreenScreenKey(string sourcePath)
     {
-        using var bgr = source.Channels() == 3 ? source.Clone() : source.CvtColor(ColorConversionCodes.BGRA2BGR);
-        using var hsv = new Mat();
-        Cv2.CvtColor(bgr, hsv, ColorConversionCodes.BGR2HSV);
-        var output = new Mat();
-        Cv2.CvtColor(bgr, output, ColorConversionCodes.BGR2BGRA);
+        var bitmap = LoadWritableBitmap(sourcePath);
+        var stride = bitmap.PixelWidth * 4;
+        var pixels = new byte[stride * bitmap.PixelHeight];
+        bitmap.CopyPixels(pixels, stride, 0);
 
-        for (var y = 0; y < bgr.Rows; y++)
+        for (var y = 0; y < bitmap.PixelHeight; y++)
         {
-            var bgrRow = (byte*)bgr.Ptr(y);
-            var hsvRow = (byte*)hsv.Ptr(y);
-            var outRow = (byte*)output.Ptr(y);
-
-            for (var x = 0; x < bgr.Cols; x++)
+            for (var x = 0; x < bitmap.PixelWidth; x++)
             {
-                var pixel = x * 3;
-                var outPixel = x * 4;
-                var blue = bgrRow[pixel];
-                var green = bgrRow[pixel + 1];
-                var red = bgrRow[pixel + 2];
-                var hue = hsvRow[pixel];
-                var saturation = hsvRow[pixel + 1];
-                var value = hsvRow[pixel + 2];
+                var offset = (y * stride) + (x * 4);
+                var blue = pixels[offset];
+                var green = pixels[offset + 1];
+                var red = pixels[offset + 2];
+                RgbToHsv(red, green, blue, out var hue, out var saturation, out var value);
 
                 var greenDominance = green - Math.Max(red, blue);
-                var greenHueDistance = Math.Abs(hue - 60);
-                var isGreenHue = greenHueDistance <= 28;
-                var isKeyCandidate = isGreenHue
-                    && saturation >= 55
-                    && value >= 70
+                var greenHueDistance = Math.Abs(hue - 120);
+                var isKeyCandidate = greenHueDistance <= 56
+                    && saturation >= 0.22
+                    && value >= 0.27
                     && greenDominance >= 18
                     && green >= 95;
 
@@ -437,28 +515,29 @@ public sealed class AssetPackLoader
                 }
 
                 var dominanceAlpha = 1.0 - Clamp01((greenDominance - 18) / 52.0);
-                var hueAlpha = Clamp01((greenHueDistance - 8) / 20.0);
+                var hueAlpha = Clamp01((greenHueDistance - 16) / 40.0);
                 var alpha = (byte)Math.Round(255 * Math.Max(dominanceAlpha, hueAlpha));
 
-                outRow[outPixel + 1] = Math.Min(green, Math.Max(red, blue));
-                outRow[outPixel + 3] = alpha;
+                pixels[offset + 1] = Math.Min(green, Math.Max(red, blue));
+                pixels[offset + 3] = alpha;
             }
         }
 
+        var output = BitmapSource.Create(bitmap.PixelWidth, bitmap.PixelHeight, 96, 96, PixelFormats.Bgra32, null, pixels, stride);
+        output.Freeze();
         return output;
     }
 
-    private static Mat NormalizeWalkFrame(Mat keyedFrame)
+    private static BitmapSource NormalizeWalkFrame(BitmapSource keyedFrame)
     {
         var bounds = AlphaBounds(keyedFrame);
         if (bounds.Width <= 0 || bounds.Height <= 0)
         {
-            return keyedFrame.Clone();
+            return keyedFrame;
         }
 
         var targetWidth = 1100;
         var targetHeight = 650;
-        using var cropped = new Mat(keyedFrame, bounds);
         var horizontalPadding = 34;
         var topPadding = 18;
         var bottomPadding = 8;
@@ -472,28 +551,51 @@ public sealed class AssetPackLoader
         var offsetX = Math.Max(0, (targetWidth - drawWidth) / 2);
         var offsetY = Math.Max(topPadding, targetHeight - bottomPadding - drawHeight);
 
-        using var resized = new Mat();
-        Cv2.Resize(cropped, resized, new OpenCvSharp.Size(drawWidth, drawHeight), 0, 0, InterpolationFlags.Lanczos4);
+        var cropped = new CroppedBitmap(keyedFrame, new System.Windows.Int32Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height));
+        var resized = new TransformedBitmap(cropped, new ScaleTransform(drawWidth / (double)bounds.Width, drawHeight / (double)bounds.Height));
+        var visual = new DrawingVisual();
+        using (var context = visual.RenderOpen())
+        {
+            context.DrawImage(resized, new System.Windows.Rect(offsetX, offsetY, drawWidth, drawHeight));
+        }
 
-        var normalized = new Mat(targetHeight, targetWidth, MatType.CV_8UC4, Scalar.All(0));
-        var destination = new Rect(offsetX, offsetY, drawWidth, drawHeight);
-        resized.CopyTo(new Mat(normalized, destination));
+        var normalized = new RenderTargetBitmap(targetWidth, targetHeight, 96, 96, PixelFormats.Pbgra32);
+        normalized.Render(visual);
+        normalized.Freeze();
         return normalized;
     }
 
-    private static unsafe Rect AlphaBounds(Mat image)
+    private static BitmapSource LoadWritableBitmap(string sourcePath)
     {
-        var minX = image.Cols;
-        var minY = image.Rows;
+        var image = LoadImage(sourcePath);
+        var converted = new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+        converted.Freeze();
+        return converted;
+    }
+
+    private static void SavePng(BitmapSource bitmap, string outputPath)
+    {
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(outputPath);
+        encoder.Save(stream);
+    }
+
+    private static PixelBounds AlphaBounds(BitmapSource image)
+    {
+        var stride = image.PixelWidth * 4;
+        var pixels = new byte[stride * image.PixelHeight];
+        image.CopyPixels(pixels, stride, 0);
+        var minX = image.PixelWidth;
+        var minY = image.PixelHeight;
         var maxX = -1;
         var maxY = -1;
 
-        for (var y = 0; y < image.Rows; y++)
+        for (var y = 0; y < image.PixelHeight; y++)
         {
-            var row = (byte*)image.Ptr(y);
-            for (var x = 0; x < image.Cols; x++)
+            for (var x = 0; x < image.PixelWidth; x++)
             {
-                var alpha = row[(x * 4) + 3];
+                var alpha = pixels[(y * stride) + (x * 4) + 3];
                 if (alpha <= 8)
                 {
                     continue;
@@ -507,8 +609,33 @@ public sealed class AssetPackLoader
         }
 
         return maxX < minX || maxY < minY
-            ? new Rect(0, 0, 0, 0)
-            : new Rect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+            ? new PixelBounds(0, 0, 0, 0)
+            : new PixelBounds(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    }
+
+    private static void RgbToHsv(byte red, byte green, byte blue, out double hue, out double saturation, out double value)
+    {
+        var r = red / 255.0;
+        var g = green / 255.0;
+        var b = blue / 255.0;
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var delta = max - min;
+
+        hue = delta == 0
+            ? 0
+            : max == r
+                ? 60 * (((g - b) / delta) % 6)
+                : max == g
+                    ? 60 * (((b - r) / delta) + 2)
+                    : 60 * (((r - g) / delta) + 4);
+        if (hue < 0)
+        {
+            hue += 360;
+        }
+
+        saturation = max == 0 ? 0 : delta / max;
+        value = max;
     }
 
     private static double Clamp01(double value)
@@ -519,5 +646,39 @@ public sealed class AssetPackLoader
     private static string NormalizePath(string path)
     {
         return path.Replace('/', Path.DirectorySeparatorChar);
+    }
+
+    private readonly record struct PixelBounds(int Left, int Top, int Width, int Height);
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        private TemporaryDirectory(string path)
+        {
+            Path = path;
+        }
+
+        public string Path { get; }
+
+        public static TemporaryDirectory Create()
+        {
+            var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "DockCatWin-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            return new TemporaryDirectory(path);
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(Path))
+                {
+                    Directory.Delete(Path, recursive: true);
+                }
+            }
+            catch
+            {
+                // Temporary files are best-effort cleanup only.
+            }
+        }
     }
 }

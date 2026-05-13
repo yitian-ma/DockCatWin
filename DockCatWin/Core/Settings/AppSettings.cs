@@ -5,7 +5,7 @@ public sealed class AppSettings
     public string CatName { get; set; } = "栗子";
     public string CatIdentifier { get; set; } = "Lizz";
     public string UserSalutation { get; set; } = "妈妈";
-    public string SelectedAssetPackID { get; set; } = "my-cat";
+    public string SelectedAssetPackID { get; set; } = "default-lizz";
     public bool RemindersEnabled { get; set; } = true;
     public double WaterReminderIntervalSeconds { get; set; } = 30 * 60;
     public double MovementReminderIntervalSeconds { get; set; } = 60 * 60;
@@ -53,9 +53,9 @@ public sealed class AppSettings
         CatName = string.IsNullOrWhiteSpace(CatName) ? "栗子" : CatName.Trim();
         CatIdentifier = string.IsNullOrWhiteSpace(CatIdentifier) ? "Lizz" : CatIdentifier.Trim();
         UserSalutation = string.IsNullOrWhiteSpace(UserSalutation) ? "妈妈" : UserSalutation.Trim();
-        SelectedAssetPackID = string.IsNullOrWhiteSpace(SelectedAssetPackID) ? "my-cat" : SelectedAssetPackID.Trim();
+        SelectedAssetPackID = string.IsNullOrWhiteSpace(SelectedAssetPackID) ? "default-lizz" : SelectedAssetPackID.Trim();
         ActivityDisplayID = string.IsNullOrWhiteSpace(ActivityDisplayID) ? null : ActivityDisplayID.Trim();
-        CatScalePercent = Math.Clamp(CatScalePercent, 4, 30);
+        CatScalePercent = Math.Clamp(CatScalePercent, 4, 100);
         StartPositionPercent = Math.Clamp(StartPositionPercent, 0, 100);
         WalkBaseSpeed = Math.Clamp(WalkBaseSpeed, 10, 180);
 

@@ -37,7 +37,7 @@ public sealed class CatWindowController
 
     public void SetImageScale(double percent)
     {
-        scale = Math.Clamp(percent, 4, 30) / 100;
+        scale = Math.Clamp(percent, 4, 100) / 100;
         ApplySize();
     }
 
