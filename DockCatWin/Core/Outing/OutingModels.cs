@@ -47,20 +47,21 @@ public sealed class OutingCatalog
     public OutingCatalog(
         IReadOnlyList<OutingCollectable> collectables,
         IReadOnlyList<OutingEvent> events,
-        string rootPath)
+        Func<OutingCollectable, Stream?> openImageStream)
     {
         Collectables = collectables;
         Events = events;
-        RootPath = rootPath;
+        this.openImageStream = openImageStream;
     }
+
+    private readonly Func<OutingCollectable, Stream?> openImageStream;
 
     public IReadOnlyList<OutingCollectable> Collectables { get; }
     public IReadOnlyList<OutingEvent> Events { get; }
-    public string RootPath { get; }
 
-    public string ImagePathFor(OutingCollectable collectable)
+    public Stream? OpenImageStreamFor(OutingCollectable collectable)
     {
-        return Path.Combine(RootPath, collectable.ImagePath.Replace('/', Path.DirectorySeparatorChar));
+        return openImageStream(collectable);
     }
 }
 

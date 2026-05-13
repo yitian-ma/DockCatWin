@@ -1,10 +1,13 @@
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 
 namespace DockCatWin.Core.Outing;
 
 public sealed class OutingCatalogLoader
 {
+    private const string ResourceRoot = "DockCatWin.Resources.Outing";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -12,16 +15,16 @@ public sealed class OutingCatalogLoader
 
     public OutingCatalog LoadCatalog()
     {
-        var root = Path.Combine(AppContext.BaseDirectory, "Resources", "Outing");
-        var collectables = LoadJson<List<OutingCollectable>>(Path.Combine(root, "collectables.json")) ?? [];
-        var events = LoadJson<List<OutingEvent>>(Path.Combine(root, "events.json")) ?? [];
+        var assembly = typeof(OutingCatalogLoader).Assembly;
+        var collectables = LoadJson<List<OutingCollectable>>(assembly, "collectables.json") ?? [];
+        var events = LoadJson<List<OutingEvent>>(assembly, "events.json") ?? [];
 
         collectables = collectables
             .Where(item => !string.IsNullOrWhiteSpace(item.Id)
                 && !string.IsNullOrWhiteSpace(item.ChineseName)
                 && !string.IsNullOrWhiteSpace(item.ImagePath)
                 && item.Rarity is >= 1 and <= 5
-                && File.Exists(Path.Combine(root, item.ImagePath.Replace('/', Path.DirectorySeparatorChar))))
+                && ResourceExists(assembly, item.ImagePath))
             .ToList();
 
         events = events
@@ -29,20 +32,38 @@ public sealed class OutingCatalogLoader
                 && !string.IsNullOrWhiteSpace(item.ChineseDescription))
             .ToList();
 
-        return new OutingCatalog(collectables, events, root);
+        return new OutingCatalog(collectables, events, item => OpenResourceStream(assembly, item.ImagePath));
     }
 
-    private static T? LoadJson<T>(string path)
+    private static T? LoadJson<T>(Assembly assembly, string relativePath)
     {
         try
         {
-            return File.Exists(path)
-                ? JsonSerializer.Deserialize<T>(File.ReadAllText(path), JsonOptions)
-                : default;
+            using var stream = OpenResourceStream(assembly, relativePath);
+            return stream is null
+                ? default
+                : JsonSerializer.Deserialize<T>(stream, JsonOptions);
         }
         catch
         {
             return default;
         }
+    }
+
+    private static bool ResourceExists(Assembly assembly, string relativePath)
+    {
+        using var stream = OpenResourceStream(assembly, relativePath);
+        return stream is not null;
+    }
+
+    private static Stream? OpenResourceStream(Assembly assembly, string relativePath)
+    {
+        var resourceName = ResourceName(relativePath);
+        return assembly.GetManifestResourceStream(resourceName);
+    }
+
+    private static string ResourceName(string relativePath)
+    {
+        return $"{ResourceRoot}.{relativePath.Replace('\\', '.').Replace('/', '.')}";
     }
 }

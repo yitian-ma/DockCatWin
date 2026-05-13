@@ -13,5 +13,7 @@
     <Content Include="Resources\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Remove="Resources\Outing\**\*.*" />
+    <EmbeddedResource Include="Resources\Outing\**\*.*" />
   </ItemGroup>
 </Project>

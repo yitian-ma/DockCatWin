@@ -833,7 +833,7 @@ public partial class MainWindow : Window
                 SaveUserData();
                 ShowBubble(
                     $"我回来啦，给{settings.UserSalutation}带了礼物：{collectableReward.Value.ChineseName}",
-                    LoadBubbleImage(outingCatalog.ImagePathFor(collectableReward.Value)),
+                    LoadBubbleImage(outingCatalog.OpenImageStreamFor(collectableReward.Value)),
                     showInput: false,
                     ("收下礼物", FinishOutingReturn));
                 break;
@@ -852,19 +852,22 @@ public partial class MainWindow : Window
         stateMachine.WelcomeBack();
     }
 
-    private static BitmapImage? LoadBubbleImage(string path)
+    private static BitmapImage? LoadBubbleImage(Stream? stream)
     {
-        if (!File.Exists(path))
+        if (stream is null)
         {
             return null;
         }
 
-        var image = new BitmapImage();
-        image.BeginInit();
-        image.CacheOption = BitmapCacheOption.OnLoad;
-        image.UriSource = new Uri(path, UriKind.Absolute);
-        image.EndInit();
-        image.Freeze();
-        return image;
+        using (stream)
+        {
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = stream;
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
     }
 }
