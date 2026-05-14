@@ -170,7 +170,7 @@ public sealed class CatStateMachine
 
     private void EnterRandomLongDurationStateWithOptionalTransition()
     {
-        if (random.Next(2) == 0)
+        if (random.Next(3) == 0)
         {
             EnterTransitioning();
         }

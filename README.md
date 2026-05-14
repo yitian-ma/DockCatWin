@@ -4,7 +4,7 @@ DockCatWin 是 [DockCat](https://github.com/Auwuua/DockCat) 的 Windows 移植�
 
 它会贴着任务栏休息、伸懒腰、走来走去，也会提醒你喝水、起身活动。你可以拖动小猫，把它放到喜欢的位置；也可以让它出门玩一会儿，等它回来时听听见闻，或者收下它带回来的小礼物。
 
-DockCatWin 的原创概念、行为设计以及默认栗子资源均来自 DockCat 项目。当前移植基于 DockCat `v0.4`，默认栗子的休息姿态资源已同步到 DockCat `v0.4.2`。
+DockCatWin 的原创概念、行为设计以及默认栗子资源均来自 DockCat 项目。当前移植基于 DockCat `v0.4`，默认栗子的休息姿态资源和伸懒腰/打哈欠出现频率已同步到 DockCat `v0.4.2`。
 
 当前版本面向 Windows 10 和 Windows 11。
 
@@ -25,6 +25,8 @@ DockCatWin 也针对 Windows 做了一些补充：
 - 设置、资源包和存档默认保存在程序同目录的 `UserData`，方便便携使用和备份。
 - 资源包可为抱起姿态单独设置显示尺寸。
 - 自定义资源包可选使用本机已安装的 `ffmpeg` 从绿幕视频生成走路序列帧。
+
+当前暂未包含 DockCat `v0.4.2` 新增的英文界面切换；DockCatWin 的界面和文档仍以中文为主。
 
 ## 快速使用
 
