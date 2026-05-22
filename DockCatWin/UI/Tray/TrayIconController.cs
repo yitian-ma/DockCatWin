@@ -25,12 +25,14 @@ public sealed class TrayIconController : IDisposable
     public event Action? RecallRequested;
     public event Action? SettingsRequested;
     public event Action? RestoreDataRequested;
+    public event Action<bool>? StartupRegistrationChanged;
     public event Action? ToggleVisibilityRequested;
     public event Action? ExitRequested;
 
     public void Update(
         bool isVisible,
         bool isWalking,
+        bool isStartupEnabled,
         bool isOutingAway = false,
         string? statusText = null,
         string? remainingText = null)
@@ -65,6 +67,13 @@ public sealed class TrayIconController : IDisposable
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("设置...", null, (_, _) => SettingsRequested?.Invoke());
         menu.Items.Add("恢复备份...", null, (_, _) => RestoreDataRequested?.Invoke());
+        var startupItem = new Forms.ToolStripMenuItem("开机自启")
+        {
+            Checked = isStartupEnabled,
+            CheckOnClick = true
+        };
+        startupItem.CheckedChanged += (_, _) => StartupRegistrationChanged?.Invoke(startupItem.Checked);
+        menu.Items.Add(startupItem);
         menu.Items.Add(isVisible ? "隐藏小猫" : "显示小猫", null, (_, _) => ToggleVisibilityRequested?.Invoke());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => ExitRequested?.Invoke());

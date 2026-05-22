@@ -33,6 +33,7 @@ public partial class MainWindow : Window
     private readonly AssetPackLoader assetPackLoader = new();
     private readonly OutingCatalogLoader outingCatalogLoader = new();
     private readonly CollectableInventoryStore collectableInventoryStore = new();
+    private readonly StartupRegistration startupRegistration = new();
     private readonly CatStateMachine stateMachine = new();
     private readonly Random random = new();
 
@@ -104,6 +105,7 @@ public partial class MainWindow : Window
         trayIcon.RecallRequested += () => Dispatcher.Invoke(ShowRecallConfirmation);
         trayIcon.SettingsRequested += () => Dispatcher.Invoke(ShowSettingsWindow);
         trayIcon.RestoreDataRequested += () => Dispatcher.Invoke(BeginUserDataRestore);
+        trayIcon.StartupRegistrationChanged += enabled => Dispatcher.Invoke(() => SetStartupRegistration(enabled));
         trayIcon.ToggleVisibilityRequested += () => Dispatcher.Invoke(ToggleVisibilityFromTray);
         trayIcon.ExitRequested += () => Dispatcher.Invoke(ExitApplication);
         catWindow = new CatWindowController(
@@ -413,6 +415,14 @@ public partial class MainWindow : Window
         var restoreItem = new MenuItem { Header = "恢复备份..." };
         restoreItem.Click += (_, _) => BeginUserDataRestore();
 
+        var startupItem = new MenuItem
+        {
+            Header = "开机自启",
+            IsCheckable = true,
+            IsChecked = startupRegistration.IsEnabled()
+        };
+        startupItem.Click += (_, _) => SetStartupRegistration(startupItem.IsChecked);
+
         var visibility = new MenuItem { Header = IsVisible ? "隐藏小猫" : "显示小猫" };
         visibility.Click += (_, _) => ToggleVisibilityFromTray();
 
@@ -422,6 +432,7 @@ public partial class MainWindow : Window
         menu.Items.Add(new Separator());
         menu.Items.Add(settingsItem);
         menu.Items.Add(restoreItem);
+        menu.Items.Add(startupItem);
         menu.Items.Add(visibility);
         menu.Items.Add(new Separator());
         menu.Items.Add(exit);
@@ -798,9 +809,28 @@ public partial class MainWindow : Window
         trayIcon?.Update(
             IsVisible,
             stateMachine.State.Kind == CatStateKind.Walking,
+            startupRegistration.IsEnabled(),
             stateMachine.State.Kind == CatStateKind.OutingAway,
             StatusText(),
             RemainingText());
+    }
+
+    private void SetStartupRegistration(bool enabled)
+    {
+        try
+        {
+            startupRegistration.SetEnabled(enabled);
+        }
+        catch (Exception error)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                $"无法更新开机自启设置。\n\n{error.Message}",
+                "开机自启",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        UpdateTray();
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
