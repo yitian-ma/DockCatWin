@@ -103,6 +103,7 @@ public partial class MainWindow : Window
         trayIcon.OutingRequested += () => Dispatcher.Invoke(stateMachine.BeginOutingPrompt);
         trayIcon.RecallRequested += () => Dispatcher.Invoke(ShowRecallConfirmation);
         trayIcon.SettingsRequested += () => Dispatcher.Invoke(ShowSettingsWindow);
+        trayIcon.RestoreDataRequested += () => Dispatcher.Invoke(BeginUserDataRestore);
         trayIcon.ToggleVisibilityRequested += () => Dispatcher.Invoke(ToggleVisibilityFromTray);
         trayIcon.ExitRequested += () => Dispatcher.Invoke(ExitApplication);
         catWindow = new CatWindowController(
@@ -208,7 +209,7 @@ public partial class MainWindow : Window
             case CatStateKind.OutingConfirmingDeparture:
                 SetRandomImage(assetPack.DialoguePoses);
                 ShowBubble(
-                    $"我出门啦，{settings.UserSalutation}工作要加油呀！",
+                    OutingDepartureMessage(),
                     ("好的", StartConfirmedOuting));
                 break;
             case CatStateKind.OutingLeaving:
@@ -409,6 +410,9 @@ public partial class MainWindow : Window
         var settingsItem = new MenuItem { Header = "设置..." };
         settingsItem.Click += (_, _) => ShowSettingsWindow();
 
+        var restoreItem = new MenuItem { Header = "恢复备份..." };
+        restoreItem.Click += (_, _) => BeginUserDataRestore();
+
         var visibility = new MenuItem { Header = IsVisible ? "隐藏小猫" : "显示小猫" };
         visibility.Click += (_, _) => ToggleVisibilityFromTray();
 
@@ -417,6 +421,7 @@ public partial class MainWindow : Window
 
         menu.Items.Add(new Separator());
         menu.Items.Add(settingsItem);
+        menu.Items.Add(restoreItem);
         menu.Items.Add(visibility);
         menu.Items.Add(new Separator());
         menu.Items.Add(exit);
@@ -460,6 +465,90 @@ public partial class MainWindow : Window
         }
         ApplySettings(reposition: true);
         ApplyState(stateMachine.State);
+    }
+
+    private void BeginUserDataRestore()
+    {
+        var confirm = System.Windows.MessageBox.Show(
+            this,
+            "恢复备份会覆盖当前设置、使用统计和收藏品记录。要继续吗？",
+            "恢复备份",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(userDataBackupStore.BackupDirectoryPath);
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择 DockCatWin 备份文件",
+            Filter = "JSON 备份文件 (*.json)|*.json|所有文件 (*.*)|*.*",
+            InitialDirectory = userDataBackupStore.BackupDirectoryPath
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = userDataBackupStore.RestoreData(dialog.FileName, outingCatalog);
+            ApplyUserDataRestore(result);
+            var message = "备份已恢复。";
+            if (result.SkippedCollectableNames.Count > 0)
+            {
+                message += "\n\n以下收藏品在当前版本中不存在，已跳过：\n"
+                    + string.Join("\n", result.SkippedCollectableNames.Select(name => $"• {name}"));
+            }
+            System.Windows.MessageBox.Show(this, message, "恢复完成", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception error)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                $"无法恢复这个备份文件。\n\n{error.Message}",
+                "恢复失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private void ApplyUserDataRestore(UserDataRestoreResult result)
+    {
+        var previousAssetPackID = settings.SelectedAssetPackID;
+        settings = result.Settings;
+        usageStatistics = result.UsageStatistics;
+        collectableInventory = result.CollectableInventory;
+
+        settingsStore.Save(settings);
+        usageStatisticsStore.Save(usageStatistics);
+        collectableInventoryStore.Save(collectableInventory);
+        userDataBackupStore.Save(settings, usageStatistics, collectableInventory, outingCatalog);
+
+        reminderScheduler.Reset(settings);
+        outingTimer.Stop();
+        pendingOutingDuration = null;
+        pendingOutingReward = null;
+        activeReminder = null;
+        forceEventReturn = false;
+        HideBubble();
+
+        if (settings.SelectedAssetPackID != previousAssetPackID)
+        {
+            assetPack = assetPackLoader.LoadSelectedPack(settings.SelectedAssetPackID);
+            catWindow = new CatWindowController(
+                this,
+                CatImage,
+                MirrorTransform,
+                assetPack.DefaultSourceSize);
+        }
+
+        Show();
+        ApplySettings(reposition: true);
+        stateMachine.Start();
+        UpdateTray();
     }
 
     private void ShowOutingDurationBubble()
@@ -615,7 +704,7 @@ public partial class MainWindow : Window
 
         activeReminder = due;
         ShowBubble(
-            due.Value.Message(settings.UserSalutation),
+            due.Value.Message(settings),
             ("完成啦", () => CompleteReminder(due.Value)),
             ("稍等5分钟", () => SnoozeReminder(due.Value)));
     }
@@ -627,7 +716,7 @@ public partial class MainWindow : Window
         {
             usageStatistics.CompletedWaterReminders++;
         }
-        else
+        else if (reminder == ReminderType.Movement)
         {
             usageStatistics.CompletedMovementReminders++;
         }
@@ -743,7 +832,7 @@ public partial class MainWindow : Window
     private void SaveUserData()
     {
         usageStatisticsStore.Save(usageStatistics);
-        userDataBackupStore.Save(settings, usageStatistics, collectableInventory);
+        userDataBackupStore.Save(settings, usageStatistics, collectableInventory, outingCatalog);
     }
 
     private string StatusText()
@@ -762,6 +851,14 @@ public partial class MainWindow : Window
             CatStateKind.OutingReturned => $"{settings.CatName}回来了",
             _ => "DockCatWin"
         };
+    }
+
+    private string OutingDepartureMessage()
+    {
+        var suffix = string.IsNullOrWhiteSpace(settings.OutingDepartureMessageSuffix)
+            ? "工作要加油呀！"
+            : settings.OutingDepartureMessageSuffix.Trim();
+        return $"我出门啦，{settings.UserSalutation}{suffix}";
     }
 
     private string? RemainingText()

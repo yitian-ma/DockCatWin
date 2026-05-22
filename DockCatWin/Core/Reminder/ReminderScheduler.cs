@@ -6,6 +6,7 @@ public sealed class ReminderScheduler
 {
     private DateTime nextWaterDue = DateTime.UtcNow;
     private DateTime nextMovementDue = DateTime.UtcNow;
+    private DateTime? nextCustomDue;
     private ReminderType? pendingReminder;
 
     public ReminderScheduler(AppSettings settings)
@@ -18,6 +19,9 @@ public sealed class ReminderScheduler
         var now = DateTime.UtcNow;
         nextWaterDue = now.AddSeconds(settings.WaterReminderIntervalSeconds);
         nextMovementDue = now.AddSeconds(settings.MovementReminderIntervalSeconds);
+        nextCustomDue = settings.CustomReminderEnabled
+            ? now.AddSeconds(settings.CustomReminderIntervalSeconds)
+            : null;
         pendingReminder = null;
     }
 
@@ -35,13 +39,17 @@ public sealed class ReminderScheduler
 
         var now = DateTime.UtcNow;
         ReminderType? due = null;
-        if (now >= nextWaterDue)
-        {
-            due = ReminderType.Water;
-        }
-        else if (now >= nextMovementDue)
+        if (now >= nextMovementDue)
         {
             due = ReminderType.Movement;
+        }
+        else if (settings.CustomReminderEnabled && nextCustomDue is { } customDue && now >= customDue)
+        {
+            due = ReminderType.Custom;
+        }
+        else if (now >= nextWaterDue)
+        {
+            due = ReminderType.Water;
         }
 
         pendingReminder = due;
@@ -51,15 +59,36 @@ public sealed class ReminderScheduler
     public void Complete(ReminderType type, AppSettings settings)
     {
         pendingReminder = null;
-        Schedule(type, type == ReminderType.Water
-            ? TimeSpan.FromSeconds(settings.WaterReminderIntervalSeconds)
-            : TimeSpan.FromSeconds(settings.MovementReminderIntervalSeconds));
+        switch (type)
+        {
+            case ReminderType.Water:
+                Schedule(type, TimeSpan.FromSeconds(settings.WaterReminderIntervalSeconds));
+                break;
+            case ReminderType.Movement:
+                Schedule(type, TimeSpan.FromSeconds(settings.MovementReminderIntervalSeconds));
+                Schedule(ReminderType.Water, TimeSpan.FromSeconds(settings.WaterReminderIntervalSeconds));
+                break;
+            case ReminderType.Custom:
+                if (settings.CustomReminderEnabled)
+                {
+                    Schedule(type, TimeSpan.FromSeconds(settings.CustomReminderIntervalSeconds));
+                }
+                else
+                {
+                    nextCustomDue = null;
+                }
+                break;
+        }
     }
 
     public void Snooze(ReminderType type, TimeSpan delay)
     {
         pendingReminder = null;
         Schedule(type, delay);
+        if (type == ReminderType.Movement && nextWaterDue <= DateTime.UtcNow.Add(delay))
+        {
+            Schedule(ReminderType.Water, delay);
+        }
     }
 
     public void Clear()
@@ -74,9 +103,13 @@ public sealed class ReminderScheduler
         {
             nextWaterDue = next;
         }
-        else
+        else if (type == ReminderType.Movement)
         {
             nextMovementDue = next;
+        }
+        else
+        {
+            nextCustomDue = next;
         }
     }
 }

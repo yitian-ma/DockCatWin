@@ -8,7 +8,13 @@ public sealed class AppSettings
     public string SelectedAssetPackID { get; set; } = "default-lizz";
     public bool RemindersEnabled { get; set; } = true;
     public double WaterReminderIntervalSeconds { get; set; } = 30 * 60;
+    public string WaterReminderMessageSuffix { get; set; } = "该喝水啦";
     public double MovementReminderIntervalSeconds { get; set; } = 60 * 60;
+    public string MovementReminderMessageSuffix { get; set; } = "该起来走走啦";
+    public bool CustomReminderEnabled { get; set; }
+    public double CustomReminderIntervalSeconds { get; set; } = 30 * 60;
+    public string CustomReminderMessageSuffix { get; set; } = "休息一下吧";
+    public string OutingDepartureMessageSuffix { get; set; } = "工作要加油呀！";
     public double DefaultOutingDurationSeconds { get; set; } = 25 * 60;
     public double RestDurationMinimumSeconds { get; set; } = 2 * 60;
     public double RestDurationMaximumSeconds { get; set; } = 5 * 60;
@@ -33,7 +39,13 @@ public sealed class AppSettings
             SelectedAssetPackID = SelectedAssetPackID,
             RemindersEnabled = RemindersEnabled,
             WaterReminderIntervalSeconds = WaterReminderIntervalSeconds,
+            WaterReminderMessageSuffix = WaterReminderMessageSuffix,
             MovementReminderIntervalSeconds = MovementReminderIntervalSeconds,
+            MovementReminderMessageSuffix = MovementReminderMessageSuffix,
+            CustomReminderEnabled = CustomReminderEnabled,
+            CustomReminderIntervalSeconds = CustomReminderIntervalSeconds,
+            CustomReminderMessageSuffix = CustomReminderMessageSuffix,
+            OutingDepartureMessageSuffix = OutingDepartureMessageSuffix,
             DefaultOutingDurationSeconds = DefaultOutingDurationSeconds,
             RestDurationMinimumSeconds = RestDurationMinimumSeconds,
             RestDurationMaximumSeconds = RestDurationMaximumSeconds,
@@ -55,6 +67,10 @@ public sealed class AppSettings
         UserSalutation = string.IsNullOrWhiteSpace(UserSalutation) ? "妈妈" : UserSalutation.Trim();
         SelectedAssetPackID = string.IsNullOrWhiteSpace(SelectedAssetPackID) ? "default-lizz" : SelectedAssetPackID.Trim();
         ActivityDisplayID = string.IsNullOrWhiteSpace(ActivityDisplayID) ? null : ActivityDisplayID.Trim();
+        WaterReminderMessageSuffix = NormalizeMessageSuffix(WaterReminderMessageSuffix, "该喝水啦");
+        MovementReminderMessageSuffix = NormalizeMessageSuffix(MovementReminderMessageSuffix, "该起来走走啦");
+        CustomReminderMessageSuffix = NormalizeMessageSuffix(CustomReminderMessageSuffix, "休息一下吧");
+        OutingDepartureMessageSuffix = NormalizeMessageSuffix(OutingDepartureMessageSuffix, "工作要加油呀！");
         CatScalePercent = Math.Clamp(CatScalePercent, 4, 100);
         StartPositionPercent = Math.Clamp(StartPositionPercent, 0, 100);
         WalkBaseSpeed = Math.Clamp(WalkBaseSpeed, 10, 180);
@@ -65,6 +81,23 @@ public sealed class AppSettings
         WalkDurationMaximumSeconds = Math.Clamp(WalkDurationMaximumSeconds, WalkDurationMinimumSeconds, 24 * 60 * 60);
         WaterReminderIntervalSeconds = Math.Clamp(WaterReminderIntervalSeconds, 60, 24 * 60 * 60);
         MovementReminderIntervalSeconds = Math.Clamp(MovementReminderIntervalSeconds, 60, 24 * 60 * 60);
+        CustomReminderIntervalSeconds = Math.Clamp(CustomReminderIntervalSeconds, 60, 24 * 60 * 60);
         DefaultOutingDurationSeconds = Math.Clamp(DefaultOutingDurationSeconds, 60, 24 * 60 * 60);
+    }
+
+    public string ReminderMessageSuffix(DockCatWin.Core.Reminder.ReminderType type)
+    {
+        return type switch
+        {
+            DockCatWin.Core.Reminder.ReminderType.Water => WaterReminderMessageSuffix,
+            DockCatWin.Core.Reminder.ReminderType.Movement => MovementReminderMessageSuffix,
+            DockCatWin.Core.Reminder.ReminderType.Custom => CustomReminderMessageSuffix,
+            _ => "休息一下吧"
+        };
+    }
+
+    private static string NormalizeMessageSuffix(string value, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
     }
 }

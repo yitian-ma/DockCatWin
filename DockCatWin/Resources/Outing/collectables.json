@@ -40,9 +40,25 @@
     "image_path": "collectables/pinecone.png"
   },
   {
+    "id": "twig",
+    "chinese_name": "小树枝",
+    "english_name": "Twig",
+    "rarity": 1,
+    "author": "Auwuua",
+    "image_path": "collectables/twig.png"
+  },
+  {
+    "id": "flyer",
+    "chinese_name": "传单",
+    "english_name": "Flyer",
+    "rarity": 1,
+    "author": "Auwuua",
+    "image_path": "collectables/flyer.png"
+  },
+  {
     "id": "colorful_bottle_cap",
     "chinese_name": "彩色瓶盖",
-    "english_name": "Colorful Bottle Cap",
+    "english_name": "Bottle Cap",
     "rarity": 2,
     "author": "Auwuua",
     "image_path": "collectables/colorful_bottle_cap.png"
@@ -54,6 +70,22 @@
     "rarity": 2,
     "author": "Auwuua",
     "image_path": "collectables/shell_chip.png"
+  },
+  {
+    "id": "marble",
+    "chinese_name": "玻璃球",
+    "english_name": "Marble",
+    "rarity": 2,
+    "author": "Auwuua",
+    "image_path": "collectables/marble.png"
+  },
+  {
+    "id": "patterned_ribbon",
+    "chinese_name": "花纹缎带",
+    "english_name": "Ribbon",
+    "rarity": 2,
+    "author": "Auwuua",
+    "image_path": "collectables/patterned_ribbon.png"
   },
   {
     "id": "dried_flower",
@@ -102,5 +134,29 @@
     "rarity": 5,
     "author": "Auwuua",
     "image_path": "collectables/chipmunk_plush.png"
+  },
+  {
+    "id": "pinwheel",
+    "chinese_name": "纸风车",
+    "english_name": "Pinwheel",
+    "rarity": 3,
+    "author": "Auwuua",
+    "image_path": "collectables/pinwheel.png"
+  },
+  {
+    "id": "pearl_hairpin",
+    "chinese_name": "珍珠发夹",
+    "english_name": "Pearl Hairpin",
+    "rarity": 4,
+    "author": "Auwuua",
+    "image_path": "collectables/pearl_hairpin.png"
+  },
+  {
+    "id": "wand",
+    "chinese_name": "魔杖",
+    "english_name": "Wand",
+    "rarity": 5,
+    "author": "Auwuua",
+    "image_path": "collectables/wand.png"
   }
 ]

@@ -55,8 +55,14 @@ public partial class SettingsWindow : Window
         WalkMinBox.Text = Format(settings.WalkDurationMinimumSeconds / 60);
         WalkMaxBox.Text = Format(settings.WalkDurationMaximumSeconds / 60);
         WaterReminderBox.Text = Format(settings.WaterReminderIntervalSeconds / 60);
+        WaterReminderMessageBox.Text = settings.WaterReminderMessageSuffix;
         MovementReminderBox.Text = Format(settings.MovementReminderIntervalSeconds / 60);
+        MovementReminderMessageBox.Text = settings.MovementReminderMessageSuffix;
+        CustomReminderEnabledBox.IsChecked = settings.CustomReminderEnabled;
+        CustomReminderBox.Text = Format(settings.CustomReminderIntervalSeconds / 60);
+        CustomReminderMessageBox.Text = settings.CustomReminderMessageSuffix;
         DefaultOutingBox.Text = Format(settings.DefaultOutingDurationSeconds / 60);
+        OutingDepartureMessageBox.Text = settings.OutingDepartureMessageSuffix;
         RemindersEnabledBox.IsChecked = settings.RemindersEnabled;
         StatisticsText.Text = StatisticsTextValue();
         CollectablesText.Text = CollectablesTextValue();
@@ -113,6 +119,7 @@ public partial class SettingsWindow : Window
             || !TryReadDouble(WalkMaxBox.Text, out var walkMax)
             || !TryReadDouble(WaterReminderBox.Text, out var waterReminder)
             || !TryReadDouble(MovementReminderBox.Text, out var movementReminder)
+            || !TryReadDouble(CustomReminderBox.Text, out var customReminder)
             || !TryReadDouble(DefaultOutingBox.Text, out var defaultOuting))
         {
             return false;
@@ -130,8 +137,14 @@ public partial class SettingsWindow : Window
         settings.WalkDurationMinimumSeconds = walkMin * 60;
         settings.WalkDurationMaximumSeconds = walkMax * 60;
         settings.WaterReminderIntervalSeconds = waterReminder * 60;
+        settings.WaterReminderMessageSuffix = WaterReminderMessageBox.Text;
         settings.MovementReminderIntervalSeconds = movementReminder * 60;
+        settings.MovementReminderMessageSuffix = MovementReminderMessageBox.Text;
+        settings.CustomReminderEnabled = CustomReminderEnabledBox.IsChecked == true;
+        settings.CustomReminderIntervalSeconds = customReminder * 60;
+        settings.CustomReminderMessageSuffix = CustomReminderMessageBox.Text;
         settings.DefaultOutingDurationSeconds = defaultOuting * 60;
+        settings.OutingDepartureMessageSuffix = OutingDepartureMessageBox.Text;
         settings.RemindersEnabled = RemindersEnabledBox.IsChecked == true;
         settings.Normalize();
         return true;

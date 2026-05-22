@@ -1,20 +1,24 @@
 namespace DockCatWin.Core.Reminder;
 
+using DockCatWin.Core.Settings;
+
 public enum ReminderType
 {
     Water,
-    Movement
+    Movement,
+    Custom
 }
 
 public static class ReminderTypeExtensions
 {
-    public static string Message(this ReminderType type, string salutation)
+    public static string Message(this ReminderType type, AppSettings settings)
     {
-        return type switch
-        {
-            ReminderType.Water => $"{salutation}，该喝水啦。",
-            ReminderType.Movement => $"{salutation}，起来走一走吧。",
-            _ => $"{salutation}，休息一下吧。"
-        };
+        return type.Message(settings.UserSalutation, settings.ReminderMessageSuffix(type));
+    }
+
+    public static string Message(this ReminderType type, string salutation, string suffix)
+    {
+        var trimmedSuffix = string.IsNullOrWhiteSpace(suffix) ? "休息一下吧" : suffix.Trim();
+        return $"{salutation}，{trimmedSuffix}";
     }
 }

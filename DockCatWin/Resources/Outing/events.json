@@ -208,5 +208,75 @@
     "chinese_description": "我守了一会儿门垫，没有什么事情发生，所以我觉得自己守得很好。",
     "english_description": "I guarded a doormat for a while. Nothing happened, so I think I guarded it very well.",
     "author": "Auwuua"
+  },
+  {
+    "id": "met_friend_rabbit_ears",
+    "event_type": "met_friend",
+    "chinese_description": "我遇到一只兔子朋友啦，它耳朵动得很认真。它说兔子的耳朵可以帮忙听声音，也能帮忙散热。",
+    "english_description": "I met a rabbit friend. Their ears moved very seriously. They said rabbit ears help with hearing and also help them cool down.",
+    "author": "Auwuua"
+  },
+  {
+    "id": "met_friend_spotted_cat_scent",
+    "event_type": "met_friend",
+    "chinese_description": "我遇到一只斑点猫朋友啦，我们一起闻了闻路边的角落。猫咪会用气味记住很多小消息。",
+    "english_description": "I met a spotted cat friend. We sniffed a corner by the road together. Cats remember many little messages through scent.",
+    "author": "Auwuua"
+  },
+  {
+    "id": "met_friend_shiba_trot",
+    "event_type": "met_friend",
+    "chinese_description": "我遇到一只柴犬朋友啦，它走路认真得像是去上班。它提醒我回来告诉你，忙的时候也可以暂停一下稍微走一走。",
+    "english_description": "I met a shiba friend. They walked like they were going to work very seriously. They reminded me to tell you that even on busy days, a short slow walk can help.",
+    "author": "Auwuua"
+  },
+  {
+    "id": "met_friend_round_pigeon_distance",
+    "event_type": "met_friend",
+    "chinese_description": "我遇到一只圆圆的鸽子朋友，它一直保持一点距离。它说有些鸟会用小跳步调整安全距离，很有礼貌。",
+    "english_description": "I met a round pigeon friend who kept a little distance. They said some birds use tiny hops to adjust their safe space, which felt very polite.",
+    "author": "Auwuua"
+  },
+  {
+    "id": "heard_paper_bag_rustle",
+    "event_type": "heard_or_seen",
+    "chinese_description": "我听见一个纸袋沙沙响了一下，走近看才发现它只是被风翻了个身。",
+    "english_description": "I heard a paper bag rustle. When I got closer, I found it had only turned over in the wind.",
+    "author": "Auwuua"
+  },
+  {
+    "id": "saw_tiny_sticker",
+    "event_type": "heard_or_seen",
+    "chinese_description": "我看到地上贴着一张小贴纸，它已经有点旧了，但还在努力粘住自己。",
+    "english_description": "I saw a tiny sticker on the ground. It was a little old, but it was still trying hard to stay stuck.",
+    "author": "Auwuua"
+  },
+  {
+    "id": "heard_key_jingle",
+    "event_type": "heard_or_seen",
+    "chinese_description": "我听见钥匙叮叮当当地响，声音像一小串会走路的星星。",
+    "english_description": "I heard keys jingling. They sounded like a tiny bunch of walking stars.",
+    "author": "Auwuua"
+  },
+  {
+    "id": "small_adventure_leaf_boat",
+    "event_type": "small_adventure",
+    "chinese_description": "我和一只瓢虫玩了一会儿，它走得很小心，我也把爪子放得很小心。",
+    "english_description": "I played with a ladybug for a little while. It walked very carefully, so I placed my paws very carefully too.",
+    "author": "Auwuua"
+  },
+  {
+    "id": "small_adventure_curb_balance",
+    "event_type": "small_adventure",
+    "chinese_description": "我沿着院墙走了一小段，走得很稳，感觉尾巴今天也很会帮忙。",
+    "english_description": "I walked along a garden wall for a little while. I was very steady, and I think my tail helped very well today.",
+    "author": "Auwuua"
+  },
+  {
+    "id": "small_adventure_corner_peek",
+    "event_type": "small_adventure",
+    "chinese_description": "我观察了一会儿蚂蚁们工作，它们排队搬东西，好像每一只都知道自己要去哪里。",
+    "english_description": "I watched some ants work for a while. They lined up to carry things, and every one of them seemed to know exactly where to go.",
+    "author": "Auwuua"
   }
 ]

@@ -24,6 +24,7 @@ public sealed class TrayIconController : IDisposable
     public event Action? OutingRequested;
     public event Action? RecallRequested;
     public event Action? SettingsRequested;
+    public event Action? RestoreDataRequested;
     public event Action? ToggleVisibilityRequested;
     public event Action? ExitRequested;
 
@@ -63,6 +64,7 @@ public sealed class TrayIconController : IDisposable
         }
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("设置...", null, (_, _) => SettingsRequested?.Invoke());
+        menu.Items.Add("恢复备份...", null, (_, _) => RestoreDataRequested?.Invoke());
         menu.Items.Add(isVisible ? "隐藏小猫" : "显示小猫", null, (_, _) => ToggleVisibilityRequested?.Invoke());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("退出", null, (_, _) => ExitRequested?.Invoke());
