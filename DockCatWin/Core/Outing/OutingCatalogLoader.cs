@@ -23,7 +23,7 @@ public sealed class OutingCatalogLoader
             .Where(item => !string.IsNullOrWhiteSpace(item.Id)
                 && !string.IsNullOrWhiteSpace(item.ChineseName)
                 && !string.IsNullOrWhiteSpace(item.ImagePath)
-                && item.Rarity is >= 1 and <= 5
+                && (item.IsStandardRarity || item.IsSpecialDisplayRarity)
                 && ResourceExists(assembly, item.ImagePath))
             .ToList();
 

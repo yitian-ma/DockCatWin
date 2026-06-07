@@ -1,0 +1,41 @@
+<Window x:Class="DockCatWin.GiftCodeSuccessWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="兑换收藏品"
+        Width="260"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="已兑换收藏品："
+                   FontWeight="SemiBold"
+                   TextAlignment="Center"
+                   Margin="0,0,0,10" />
+        <Image x:Name="CollectableImage"
+               Grid.Row="1"
+               Width="80"
+               Height="80"
+               Stretch="Uniform"
+               HorizontalAlignment="Center"
+               Margin="0,0,0,6" />
+        <TextBlock x:Name="CollectableNameText"
+                   Grid.Row="2"
+                   TextAlignment="Center"
+                   TextTrimming="CharacterEllipsis"
+                   Margin="0,0,0,16" />
+        <Button Grid.Row="3"
+                Content="完成"
+                Width="96"
+                HorizontalAlignment="Center"
+                IsDefault="True"
+                Click="Done_Click" />
+    </Grid>
+</Window>

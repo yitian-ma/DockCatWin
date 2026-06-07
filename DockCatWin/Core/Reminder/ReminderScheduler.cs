@@ -96,6 +96,17 @@ public sealed class ReminderScheduler
         pendingReminder = null;
     }
 
+    public void RestartTimersFromNow(AppSettings settings)
+    {
+        if (!settings.RemindersEnabled)
+        {
+            Clear();
+            return;
+        }
+
+        Reset(settings);
+    }
+
     private void Schedule(ReminderType type, TimeSpan delay)
     {
         var next = DateTime.UtcNow.Add(delay);

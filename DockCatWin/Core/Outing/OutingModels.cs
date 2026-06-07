@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DockCatWin.Core.Outing;
@@ -21,6 +22,7 @@ public sealed class OutingEvent
     public string Author { get; set; } = "";
 }
 
+[JsonConverter(typeof(OutingCollectableJsonConverter))]
 public sealed class OutingCollectable
 {
     [JsonPropertyName("id")]
@@ -35,11 +37,134 @@ public sealed class OutingCollectable
     [JsonPropertyName("rarity")]
     public int Rarity { get; set; }
 
+    public bool IsSpecialDisplayRarity { get; set; }
+
+    public string RarityLabel => IsSpecialDisplayRarity ? "X" : Rarity.ToString();
+
+    public int RaritySortRank => IsSpecialDisplayRarity ? 6 : Rarity;
+
+    public bool IsStandardRarity => Rarity is >= 1 and <= 5;
+
+    public bool IsRewardEligible => IsStandardRarity && !IsRetired;
+
     [JsonPropertyName("author")]
     public string Author { get; set; } = "";
 
     [JsonPropertyName("image_path")]
     public string ImagePath { get; set; } = "";
+
+    [JsonPropertyName("is_retired")]
+    public bool IsRetired { get; set; }
+}
+
+public sealed class OutingCollectableJsonConverter : JsonConverter<OutingCollectable>
+{
+    public override OutingCollectable Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartObject)
+        {
+            throw new JsonException("Collectable must be a JSON object.");
+        }
+
+        var collectable = new OutingCollectable();
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject)
+            {
+                return collectable;
+            }
+
+            if (reader.TokenType != JsonTokenType.PropertyName)
+            {
+                throw new JsonException("Expected collectable property name.");
+            }
+
+            var propertyName = reader.GetString();
+            reader.Read();
+            switch (propertyName)
+            {
+                case "id":
+                    collectable.Id = reader.GetString() ?? "";
+                    break;
+                case "chinese_name":
+                    collectable.ChineseName = reader.GetString() ?? "";
+                    break;
+                case "english_name":
+                    collectable.EnglishName = reader.GetString() ?? "";
+                    break;
+                case "rarity":
+                    ReadRarity(ref reader, collectable);
+                    break;
+                case "author":
+                    collectable.Author = reader.GetString() ?? "";
+                    break;
+                case "image_path":
+                    collectable.ImagePath = reader.GetString() ?? "";
+                    break;
+                case "isRetired":
+                case "is_retired":
+                    collectable.IsRetired = reader.TokenType == JsonTokenType.True
+                        || (reader.TokenType == JsonTokenType.String
+                            && bool.TryParse(reader.GetString(), out var parsed)
+                            && parsed);
+                    break;
+                default:
+                    reader.Skip();
+                    break;
+            }
+        }
+
+        throw new JsonException("Collectable object was not closed.");
+    }
+
+    public override void Write(
+        Utf8JsonWriter writer,
+        OutingCollectable value,
+        JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("id", value.Id);
+        writer.WriteString("chinese_name", value.ChineseName);
+        writer.WriteString("english_name", value.EnglishName);
+        if (value.IsSpecialDisplayRarity)
+        {
+            writer.WriteString("rarity", "X");
+        }
+        else
+        {
+            writer.WriteNumber("rarity", value.Rarity);
+        }
+        writer.WriteString("author", value.Author);
+        writer.WriteString("image_path", value.ImagePath);
+        if (value.IsRetired)
+        {
+            writer.WriteBoolean("isRetired", value.IsRetired);
+        }
+        writer.WriteEndObject();
+    }
+
+    private static void ReadRarity(ref Utf8JsonReader reader, OutingCollectable collectable)
+    {
+        if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var rarity))
+        {
+            collectable.Rarity = rarity;
+            collectable.IsSpecialDisplayRarity = false;
+            return;
+        }
+
+        if (reader.TokenType == JsonTokenType.String
+            && string.Equals(reader.GetString(), "X", StringComparison.OrdinalIgnoreCase))
+        {
+            collectable.Rarity = 0;
+            collectable.IsSpecialDisplayRarity = true;
+            return;
+        }
+
+        throw new JsonException("Collectable rarity must be 1...5 or X.");
+    }
 }
 
 public sealed class OutingCatalog

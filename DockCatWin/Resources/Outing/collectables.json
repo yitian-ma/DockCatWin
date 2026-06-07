@@ -88,6 +88,14 @@
     "image_path": "collectables/patterned_ribbon.png"
   },
   {
+    "id": "wooden_whistle",
+    "chinese_name": "木哨子",
+    "english_name": "Wooden Whistle",
+    "rarity": 2,
+    "author": "Auwuua",
+    "image_path": "collectables/wooden_whistle.png"
+  },
+  {
     "id": "dried_flower",
     "chinese_name": "干花",
     "english_name": "Dried Flower",
@@ -144,6 +152,22 @@
     "image_path": "collectables/pinwheel.png"
   },
   {
+    "id": "paw_badge",
+    "chinese_name": "猫爪徽章",
+    "english_name": "Paw Badge",
+    "rarity": 3,
+    "author": "Auwuua",
+    "image_path": "collectables/paw_badge.png"
+  },
+  {
+    "id": "tiny_bottle",
+    "chinese_name": "小玻璃瓶",
+    "english_name": "Tiny Bottle",
+    "rarity": 3,
+    "author": "Auwuua",
+    "image_path": "collectables/tiny_bottle.png"
+  },
+  {
     "id": "pearl_hairpin",
     "chinese_name": "珍珠发夹",
     "english_name": "Pearl Hairpin",
@@ -152,11 +176,59 @@
     "image_path": "collectables/pearl_hairpin.png"
   },
   {
+    "id": "compass",
+    "chinese_name": "指南针",
+    "english_name": "Compass",
+    "rarity": 4,
+    "author": "Auwuua",
+    "image_path": "collectables/compass.png"
+  },
+  {
+    "id": "tiny_porcelain_cat",
+    "chinese_name": "小瓷猫",
+    "english_name": "Porcelain Cat",
+    "rarity": 4,
+    "author": "Auwuua",
+    "image_path": "collectables/tiny_porcelain_cat.png"
+  },
+  {
     "id": "wand",
     "chinese_name": "魔杖",
     "english_name": "Wand",
     "rarity": 5,
     "author": "Auwuua",
     "image_path": "collectables/wand.png"
+  },
+  {
+    "id": "firefly_amber",
+    "chinese_name": "萤火琥珀",
+    "english_name": "Firefly Amber",
+    "rarity": 5,
+    "author": "Auwuua",
+    "image_path": "collectables/firefly_amber.png"
+  },
+  {
+    "id": "crystal_petal",
+    "chinese_name": "结晶花瓣",
+    "english_name": "Crystal Petal",
+    "rarity": "X",
+    "author": "Auwuua",
+    "image_path": "collectables/crystal_petal.png"
+  },
+  {
+    "id": "twilight_petal",
+    "chinese_name": "暮色花瓣",
+    "english_name": "Twilight Petal",
+    "rarity": "X",
+    "author": "Auwuua",
+    "image_path": "collectables/twilight_petal.png"
+  },
+  {
+    "id": "starry_petal",
+    "chinese_name": "星空花瓣",
+    "english_name": "Starry Petal",
+    "rarity": "X",
+    "author": "Auwuua",
+    "image_path": "collectables/starry_petal.png"
   }
 ]

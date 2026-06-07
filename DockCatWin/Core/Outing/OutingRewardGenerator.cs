@@ -18,10 +18,11 @@ public sealed class OutingRewardGenerator
             return EventReward();
         }
 
-        var matching = catalog.Collectables.Where(item => item.Rarity == rarity).ToList();
+        var availableCollectables = catalog.Collectables.Where(item => item.IsRewardEligible).ToList();
+        var matching = availableCollectables.Where(item => item.Rarity == rarity).ToList();
         var candidates = matching.Count > 0
             ? matching
-            : catalog.Collectables.Where(item => item.Rarity == 1).ToList();
+            : availableCollectables.Where(item => item.Rarity == 1).ToList();
         return candidates.Count > 0
             ? new OutingReward.Collectable(candidates[random.Next(candidates.Count)])
             : EventReward();

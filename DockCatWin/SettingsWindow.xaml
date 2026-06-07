@@ -142,14 +142,22 @@
         <TextBlock Grid.Row="15" Grid.Column="0" Text="收藏品" VerticalAlignment="Top" Margin="0,0,12,10" />
         <TextBlock x:Name="CollectablesText" Grid.Row="15" Grid.Column="1" TextWrapping="Wrap" Foreground="#444444" Margin="0,0,0,10" />
 
+        <Button Grid.Row="16"
+                Grid.Column="1"
+                Content="兑换收藏品"
+                Width="104"
+                HorizontalAlignment="Left"
+                Margin="0,0,0,12"
+                Click="RedeemGiftCode_Click" />
+
         <TextBlock x:Name="AssetPackStatusText"
-                   Grid.Row="16"
+                   Grid.Row="17"
                    Grid.ColumnSpan="2"
                    TextWrapping="Wrap"
                    Foreground="#666666"
                    Margin="0,0,0,16" />
 
-        <StackPanel Grid.Row="17" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="18" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="取消" Width="78" Margin="0,0,8,0" Click="Cancel_Click" />
             <Button Content="保存" Width="78" IsDefault="True" Click="Save_Click" />
         </StackPanel>

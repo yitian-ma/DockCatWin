@@ -21,7 +21,7 @@ public sealed class AppSettings
     public double WalkDurationMinimumSeconds { get; set; } = 2 * 60;
     public double WalkDurationMaximumSeconds { get; set; } = 5 * 60;
     public double WalkBaseSpeed { get; set; } = 36;
-    public double CatScalePercent { get; set; } = 10;
+    public double CatScalePercent { get; set; } = 15;
     public double StartPositionPercent { get; set; } = 75;
     public string? ActivityDisplayID { get; set; }
     public DateTime? ActiveOutingEndDate { get; set; }

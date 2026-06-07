@@ -1,0 +1,47 @@
+<Window x:Class="DockCatWin.GiftCodeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="兑换收藏品"
+        Width="300"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="请输入兑换码："
+                   FontWeight="SemiBold"
+                   TextAlignment="Center"
+                   Margin="0,0,0,4" />
+        <TextBlock Grid.Row="1"
+                   Text="兑换码可联系作者获取"
+                   Foreground="#666666"
+                   TextAlignment="Center"
+                   Margin="0,0,0,10" />
+        <TextBox x:Name="CodeBox"
+                 Grid.Row="2"
+                 Width="180"
+                 HorizontalAlignment="Center"
+                 CharacterCasing="Upper"
+                 TextAlignment="Center"
+                 Margin="0,0,0,14" />
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center">
+            <Button Content="取消"
+                    Width="84"
+                    IsCancel="True"
+                    Margin="0,0,10,0" />
+            <Button Content="提交"
+                    Width="84"
+                    IsDefault="True"
+                    Click="Submit_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

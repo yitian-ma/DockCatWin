@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private readonly UserDataBackupStore userDataBackupStore = new();
     private readonly AssetPackLoader assetPackLoader = new();
     private readonly OutingCatalogLoader outingCatalogLoader = new();
+    private readonly GiftCodeRedeemer giftCodeRedeemer = new();
     private readonly CollectableInventoryStore collectableInventoryStore = new();
     private readonly StartupRegistration startupRegistration = new();
     private readonly CatStateMachine stateMachine = new();
@@ -122,7 +123,10 @@ public partial class MainWindow : Window
             stateMachine.Start();
         }
         movementTimer.Start();
-        reminderTimer.Start();
+        if (!stateMachine.State.IsOuting)
+        {
+            reminderTimer.Start();
+        }
         statisticsTimer.Start();
         UpdateTray();
     }
@@ -448,6 +452,7 @@ public partial class MainWindow : Window
             assetPackLoader.CustomPackIDs(),
             assetPackLoader.CustomPackIDs,
             assetPackLoader.ValidationSummary,
+            RedeemGiftCode,
             assetPackLoader.CustomPacksRoot(),
             usageStatistics,
             outingCatalog,
@@ -476,6 +481,26 @@ public partial class MainWindow : Window
         }
         ApplySettings(reposition: true);
         ApplyState(stateMachine.State);
+    }
+
+    private OutingCollectable? RedeemGiftCode(string code)
+    {
+        var collectableID = giftCodeRedeemer.CollectableIDFor(code, outingCatalog);
+        if (collectableID is null)
+        {
+            return null;
+        }
+
+        var collectable = outingCatalog.Collectables.FirstOrDefault(item => item.Id == collectableID);
+        if (collectable is null)
+        {
+            return null;
+        }
+
+        collectableInventory.RecordCollectable(collectable.Id);
+        collectableInventoryStore.Save(collectableInventory);
+        SaveUserData();
+        return collectable;
     }
 
     private void BeginUserDataRestore()
@@ -568,6 +593,7 @@ public partial class MainWindow : Window
         ShowBubble(
             $"要让{settings.CatName}出门多久呢？",
             image: null,
+            imageTitle: null,
             showInput: true,
             ("出门", ConfirmOutingFromBubble),
             ("取消", CancelOutingPrompt));
@@ -598,9 +624,8 @@ public partial class MainWindow : Window
         outingTimer.Stop();
         outingTimer.Interval = duration <= TimeSpan.Zero ? TimeSpan.FromMilliseconds(100) : duration;
         outingTimer.Start();
-        reminderScheduler.Clear();
+        SuspendRemindersForOuting();
         pendingOutingDuration = null;
-        activeReminder = null;
         HideBubble();
         stateMachine.DepartOuting();
     }
@@ -615,6 +640,7 @@ public partial class MainWindow : Window
         var duration = TimeSpan.FromSeconds(settings.ActiveOutingDurationSeconds ?? settings.DefaultOutingDurationSeconds);
         var remaining = settings.ActiveOutingEndDate.Value - DateTime.UtcNow;
         stateMachine.RestoreOutingAway();
+        SuspendRemindersForOuting();
         if (remaining <= TimeSpan.Zero)
         {
             ReturnFromOuting(drawReward: true, plannedDuration: duration);
@@ -745,12 +771,13 @@ public partial class MainWindow : Window
 
     private void ShowBubble(string message, params (string Title, Action Action)[] actions)
     {
-        ShowBubble(message, image: null, showInput: false, actions);
+        ShowBubble(message, image: null, imageTitle: null, showInput: false, actions);
     }
 
     private void ShowBubble(
         string message,
         ImageSource? image,
+        string? imageTitle,
         bool showInput,
         params (string Title, Action Action)[] actions)
     {
@@ -758,6 +785,8 @@ public partial class MainWindow : Window
         BubbleText.Text = message;
         BubbleImage.Source = image;
         BubbleImage.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
+        BubbleImageTitle.Text = imageTitle ?? "";
+        BubbleImageTitle.Visibility = string.IsNullOrWhiteSpace(imageTitle) ? Visibility.Collapsed : Visibility.Visible;
         BubbleInputPanel.Visibility = showInput ? Visibility.Visible : Visibility.Collapsed;
         BubbleButtons.Children.Clear();
         foreach (var action in actions)
@@ -784,6 +813,8 @@ public partial class MainWindow : Window
         BubbleBorder.Visibility = Visibility.Collapsed;
         BubbleImage.Source = null;
         BubbleImage.Visibility = Visibility.Collapsed;
+        BubbleImageTitle.Text = "";
+        BubbleImageTitle.Visibility = Visibility.Collapsed;
         BubbleInputPanel.Visibility = Visibility.Collapsed;
         BubbleButtons.Children.Clear();
         catWindow.SetExtraTopContent(0, 0);
@@ -961,6 +992,7 @@ public partial class MainWindow : Window
                 ShowBubble(
                     $"我回来啦，给{settings.UserSalutation}带了礼物：{collectableReward.Value.ChineseName}",
                     LoadBubbleImage(outingCatalog.OpenImageStreamFor(collectableReward.Value)),
+                    imageTitle: collectableReward.Value.ChineseName,
                     showInput: false,
                     ("收下礼物", FinishOutingReturn));
                 break;
@@ -977,6 +1009,23 @@ public partial class MainWindow : Window
         pendingOutingReward = null;
         HideBubble();
         stateMachine.WelcomeBack();
+        RestartRemindersAfterOuting();
+    }
+
+    private void SuspendRemindersForOuting()
+    {
+        reminderScheduler.Clear();
+        reminderTimer.Stop();
+        activeReminder = null;
+    }
+
+    private void RestartRemindersAfterOuting()
+    {
+        reminderScheduler.RestartTimersFromNow(settings);
+        if (settings.RemindersEnabled)
+        {
+            reminderTimer.Start();
+        }
     }
 
     private static BitmapImage? LoadBubbleImage(Stream? stream)

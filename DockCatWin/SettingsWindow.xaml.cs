@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Windows;
+using System.Windows.Media.Imaging;
 using DockCatWin.Core.Outing;
 using DockCatWin.Core.Statistics;
 using DockCatWin.Platform;
@@ -12,6 +13,7 @@ public partial class SettingsWindow : Window
 {
     private readonly Func<IEnumerable<string>> assetPackIDsProvider;
     private readonly Func<string, string> assetPackStatusProvider;
+    private readonly Func<string, OutingCollectable?> redeemGiftCode;
     private readonly string assetPacksRoot;
 
     public SettingsWindow(
@@ -19,6 +21,7 @@ public partial class SettingsWindow : Window
         IEnumerable<string> assetPackIDs,
         Func<IEnumerable<string>> assetPackIDsProvider,
         Func<string, string> assetPackStatusProvider,
+        Func<string, OutingCollectable?> redeemGiftCode,
         string assetPacksRoot,
         UsageStatistics statistics,
         OutingCatalog outingCatalog,
@@ -27,6 +30,7 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         this.assetPackIDsProvider = assetPackIDsProvider;
         this.assetPackStatusProvider = assetPackStatusProvider;
+        this.redeemGiftCode = redeemGiftCode;
         this.assetPacksRoot = assetPacksRoot;
         Statistics = statistics.Clone();
         OutingCatalog = outingCatalog;
@@ -100,6 +104,40 @@ public partial class SettingsWindow : Window
             FileName = assetPacksRoot,
             UseShellExecute = true
         });
+    }
+
+    private void RedeemGiftCode_Click(object sender, RoutedEventArgs e)
+    {
+        var inputWindow = new GiftCodeWindow
+        {
+            Owner = this
+        };
+        if (inputWindow.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var collectable = redeemGiftCode(inputWindow.Code);
+        if (collectable is null)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                "兑换码无效。",
+                "兑换收藏品",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        StatisticsText.Text = StatisticsTextValue();
+        CollectablesText.Text = CollectablesTextValue();
+        var successWindow = new GiftCodeSuccessWindow(
+            collectable.ChineseName,
+            LoadImage(OutingCatalog.OpenImageStreamFor(collectable)))
+        {
+            Owner = this
+        };
+        successWindow.ShowDialog();
     }
 
     private void AssetPackBox_Changed(object sender, EventArgs e)
@@ -208,9 +246,29 @@ public partial class SettingsWindow : Window
             {
                 var item = OutingCatalog.Collectables.FirstOrDefault(collectable => collectable.Id == entry.CollectableID);
                 var name = item?.ChineseName ?? entry.CollectableID;
-                return entry.Count > 1 ? $"{name} x{entry.Count}" : name;
+                var rarity = item is null ? "" : $"[{item.RarityLabel}]";
+                return entry.Count > 1 ? $"{name}{rarity} x{entry.Count}" : $"{name}{rarity}";
             });
         return string.Join("、", names);
+    }
+
+    private static BitmapImage? LoadImage(Stream? stream)
+    {
+        if (stream is null)
+        {
+            return null;
+        }
+
+        using (stream)
+        {
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = stream;
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
     }
 
     private void UpdateAssetPackStatus()
