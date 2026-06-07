@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using Microsoft.Win32;
 
 namespace DockCatWin.Platform;
@@ -34,13 +33,14 @@ public sealed class StartupRegistration
         var processPath = Environment.ProcessPath
             ?? Process.GetCurrentProcess().MainModule?.FileName;
         if (!string.IsNullOrWhiteSpace(processPath)
-            && string.Equals(Path.GetExtension(processPath), ".exe", StringComparison.OrdinalIgnoreCase))
+            && string.Equals(Path.GetExtension(processPath), ".exe", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(Path.GetFileNameWithoutExtension(processPath), "dotnet", StringComparison.OrdinalIgnoreCase))
         {
             return Quote(processPath);
         }
 
-        var assemblyPath = Assembly.GetEntryAssembly()?.Location;
-        if (!string.IsNullOrWhiteSpace(assemblyPath))
+        var assemblyPath = Path.Combine(AppContext.BaseDirectory, "DockCatWin.dll");
+        if (File.Exists(assemblyPath))
         {
             return $"dotnet {Quote(assemblyPath)}";
         }
